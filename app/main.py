@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import false, func, select
+from sqlalchemy import delete
 
 from app.auth import current_user_id, login_required, oauth
 from app.config import settings
@@ -201,6 +202,17 @@ def resolve_api_workspace(db, slug: str, token: str) -> WorkspaceApiKey:
     return api_key
 
 
+def safe_workspace_snapshot(schema_name: str, recent_limit: int = 4) -> tuple[dict, list[dict], str | None]:
+    try:
+        return workspace_status(schema_name), workspace_recent_memories(schema_name, limit=recent_limit), None
+    except Exception as exc:
+        return (
+            {"memories": {"total": 0}, "entities": 0, "relationships": 0},
+            [],
+            str(exc),
+        )
+
+
 @app.on_event("startup")
 def startup() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -277,10 +289,12 @@ async def dashboard(request: Request):
         ).scalars().all()
         enriched = []
         for ws in workspaces:
+            stats, recent, health_error = safe_workspace_snapshot(ws.schema_name, recent_limit=4)
             enriched.append({
                 "workspace": ws,
-                "stats": workspace_status(ws.schema_name),
-                "recent": workspace_recent_memories(ws.schema_name, limit=4),
+                "stats": stats,
+                "recent": recent,
+                "health_error": health_error,
                 "member_count": db.execute(
                     select(func.count()).select_from(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id)
                 ).scalar_one(),
@@ -315,7 +329,14 @@ async def create_workspace(request: Request, name: str = Form(...)):
             metadata={"slug": ws.slug, "schema_name": ws.schema_name},
         )
         db.commit()
-        init_workspace_store(schema_name)
+        try:
+            init_workspace_store(schema_name)
+        except Exception:
+            db.execute(delete(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id))
+            db.execute(delete(AuditEvent).where(AuditEvent.workspace_id == ws.id))
+            db.execute(delete(Workspace).where(Workspace.id == ws.id))
+            db.commit()
+            raise
         set_flash(request, "success", f"{ws.name} is ready.")
     finally:
         db.close()
