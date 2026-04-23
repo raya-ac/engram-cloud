@@ -242,9 +242,9 @@ async def agents_page(request: Request):
     return render(request, "agents.html", skills=starter_skill_list())
 
 
-@app.get("/pricing", response_class=HTMLResponse)
-async def pricing_page(request: Request):
-    return render(request, "pricing.html")
+@app.get("/pricing")
+async def pricing_page():
+    return RedirectResponse("/docs", status_code=302)
 
 
 @app.get("/docs", response_class=HTMLResponse)

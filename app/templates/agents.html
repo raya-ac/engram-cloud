@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Agents · Engram Cloud{% endblock %}
+{% block title %}Agents · Memorylayer{% endblock %}
 {% block body %}
 <section class="hero">
-  <div>
+  <div class="hero-copy">
     <div class="eyebrow">Agent integration</div>
     <div class="badge-row" style="margin-top:0;margin-bottom:12px">
       <span class="badge">Hosted MCP bridge</span>
@@ -10,31 +10,57 @@
       <span class="badge">Workspace API keys</span>
     </div>
     <h2>Connect agents without building the glue yourself.</h2>
-    <p>Each workspace gets a hosted memory surface for recall, remember, recent history, and higher-level Engram tools. Agents can connect with a workspace API key and start using the service immediately.</p>
+    <p>Every workspace gets a hosted memory surface for recall, remember, recent history, and higher-level Engram tools. The integration path stays simple: issue a workspace key, hit bootstrap, and start calling the service.</p>
     <div class="nav" style="margin-top:18px">
       <a href="/docs" class="button">Read docs</a>
       <a href="/login/github" class="button primary">Create workspace</a>
     </div>
+    <div class="public-rail">
+      <div>
+        <strong>Bootstrap</strong>
+        <p class="subtle">One request returns the API surface, bridge URL, and skill download paths.</p>
+      </div>
+      <div>
+        <strong>Bridge</strong>
+        <p class="subtle">Use hosted HTTP tool calls when the agent cannot run a local MCP server.</p>
+      </div>
+      <div>
+        <strong>Skills</strong>
+        <p class="subtle">Starter markdown skills drop directly into Codex or Claude-style workflows.</p>
+      </div>
+    </div>
   </div>
-  <div class="metrics">
-    <div class="metric">
-      <h3>Bootstrap endpoint</h3>
-      <p>Every workspace can expose a bootstrap payload with the API URLs, MCP bridge URL, and starter skills.</p>
+  <div class="hero-visual">
+    <div class="orbital-stage">
+      <div class="orbital-core"></div>
     </div>
-    <div class="metric">
-      <h3>MCP-style bridge</h3>
-      <p>The hosted bridge maps selected Engram tools into one HTTP endpoint, which is useful when an agent cannot run a local MCP server.</p>
-    </div>
-    <div class="metric">
-      <h3>Downloadable starter skills</h3>
-      <p>Skills ship as plain markdown so teams can drop them into Codex or Claude-style workflows quickly.</p>
+    <div class="signal-stack">
+      <div class="signal-line">
+        <strong>Bootstrap endpoint</strong>
+        <span>Workspace-specific service URLs and integration metadata in one response</span>
+      </div>
+      <div class="signal-line">
+        <strong>Bridge tools</strong>
+        <span>Focused hosted access to selected Engram methods over HTTP JSON</span>
+      </div>
+      <div class="signal-line">
+        <strong>Skill downloads</strong>
+        <span>Plain markdown starter skills for fast memory/handoff setup</span>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="grid three">
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Starter skills</h2>
+    <p class="subtle">Small, deliberate instructions that help agents use hosted memory well from the first run.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
   {% for skill in skills %}
-  <div class="card">
+  <div class="surface-block">
     <h3>{{ skill.title }}</h3>
     <p>{{ skill.summary }}</p>
   </div>

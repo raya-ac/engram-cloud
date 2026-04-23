@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Join {{ workspace.name }} · Engram Cloud{% endblock %}
+{% block title %}Join {{ workspace.name }} · Memorylayer{% endblock %}
 {% block body %}
 <section class="hero" style="grid-template-columns:1fr">
   <div>
+    <div class="eyebrow">Workspace invite</div>
     <div class="badge-row" style="margin-top:0;margin-bottom:12px">
       <span class="badge">{{ workspace.slug }}</span>
       <span class="badge">{{ invite.role }}</span>

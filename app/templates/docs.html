@@ -1,122 +1,138 @@
 {% extends "base.html" %}
-{% block title %}Docs · Engram Cloud{% endblock %}
+{% block title %}Docs · Memorylayer{% endblock %}
 {% block body %}
 <section class="hero">
-  <div>
+  <div class="hero-copy">
     <div class="eyebrow">Hosted memory API</div>
     <h2>Plug agents into memory without local setup.</h2>
-    <p>Engram Cloud exposes a hosted service surface around the Engram engine: workspace API keys, agent bootstrap, an HTTP MCP bridge, downloadable starter skills, and regular JSON endpoints for the memory lifecycle.</p>
+    <p>Memorylayer exposes a hosted service surface around the Engram engine: workspace API keys, agent bootstrap, an HTTP MCP bridge, downloadable starter skills, and regular JSON endpoints for the memory lifecycle.</p>
     <div class="nav" style="margin-top:18px">
       <a href="{{ openapi_url }}" class="button">OpenAPI</a>
       <a href="/agents" class="button">Agent setup</a>
       <a href="/login/github" class="button primary">Create a workspace</a>
     </div>
+    <div class="public-rail">
+      <div>
+        <strong>JSON API</strong>
+        <p class="subtle">Status, search, remember, recent memory, audit history, and bootstrap.</p>
+      </div>
+      <div>
+        <strong>HTTP MCP bridge</strong>
+        <p class="subtle">One authenticated endpoint for a focused set of Engram tools.</p>
+      </div>
+      <div>
+        <strong>Starter skills</strong>
+        <p class="subtle">Markdown skills for Codex or Claude-style memory workflows.</p>
+      </div>
+    </div>
   </div>
-  <div class="metrics">
-    <div class="metric">
-      <h3>JSON API</h3>
-      <p>Use hosted routes for status, search, remember, recent memory, audit history, and bootstrap.</p>
-    </div>
-    <div class="metric">
-      <h3>HTTP MCP bridge</h3>
-      <p>Call a selected set of Engram tools over one authenticated HTTP endpoint when the agent cannot run a local MCP server.</p>
-    </div>
-    <div class="metric">
-      <h3>Starter skills</h3>
-      <p>Download markdown skills and drop them straight into Codex or Claude-style workflows.</p>
+  <div class="hero-visual">
+    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+      <div class="signal-line">
+        <strong>Auth</strong>
+        <span>Workspace key via `Authorization: Bearer` or `X-API-Key`</span>
+      </div>
+      <div class="signal-line">
+        <strong>Bridge</strong>
+        <span>`/api/workspaces/{slug}/mcp` plus tool discovery and bootstrap</span>
+      </div>
+      <div class="signal-line">
+        <strong>OpenAPI</strong>
+        <span>Machine-readable surface for clients that want a direct service contract</span>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="section-title">
+<section class="section-title fade-reveal">
   <div>
     <h2>Authentication</h2>
     <p class="subtle">All workspace API routes accept a workspace key in either `Authorization: Bearer` or `X-API-Key`.</p>
   </div>
 </section>
 
-<div class="card" style="margin-bottom:18px">
+<div class="surface-block fade-reveal" style="margin-bottom:18px">
   <div class="code-block">Authorization: Bearer engram_...
 X-API-Key: engram_...</div>
 </div>
 
-<section class="section-title">
+<section class="section-title fade-reveal">
   <div>
     <h2>Bootstrap</h2>
     <p class="subtle">Use one workspace call to discover the rest of the integration surface.</p>
   </div>
 </section>
 
-<div class="card" style="margin-bottom:18px">
+<div class="surface-block fade-reveal" style="margin-bottom:18px">
   <div class="code-block">GET /api/workspaces/{slug}/bootstrap</div>
 </div>
 
-<section class="section-title">
+<section class="section-title fade-reveal">
   <div>
     <h2>Core endpoints</h2>
     <p class="subtle">These are the main hosted routes an agent or service uses day to day.</p>
   </div>
 </section>
 
-<section class="grid three">
-  <div class="card">
+<section class="grid three fade-reveal">
+  <div class="surface-block">
     <h3>Status</h3>
     <p><code>GET /api/workspaces/{slug}/status</code></p>
     <p class="subtle">Workspace memory counts and graph stats.</p>
   </div>
-  <div class="card">
+  <div class="surface-block">
     <h3>Search</h3>
     <p><code>POST /api/workspaces/{slug}/search</code></p>
     <p class="subtle">Run hosted retrieval without touching the underlying Engram runtime directly.</p>
   </div>
-  <div class="card">
+  <div class="surface-block">
     <h3>Remember</h3>
     <p><code>POST /api/workspaces/{slug}/remember</code></p>
     <p class="subtle">Store new narrative, fact, or procedure memories.</p>
   </div>
-  <div class="card">
+  <div class="surface-block">
     <h3>Recent</h3>
     <p><code>GET /api/workspaces/{slug}/memories/recent</code></p>
     <p class="subtle">Load the last memories written to the workspace.</p>
   </div>
-  <div class="card">
+  <div class="surface-block">
     <h3>Audit</h3>
     <p><code>GET /api/workspaces/{slug}/audit</code></p>
     <p class="subtle">Inspect workspace-level key usage and memory activity.</p>
   </div>
-  <div class="card">
+  <div class="surface-block">
     <h3>MCP bridge</h3>
     <p><code>POST /api/workspaces/{slug}/mcp</code></p>
     <p class="subtle">Call selected Engram tools through one hosted bridge.</p>
   </div>
 </section>
 
-<section class="section-title">
+<section class="section-title fade-reveal">
   <div>
     <h2>Bridge tools</h2>
     <p class="subtle">The hosted bridge intentionally exposes a smaller, reliable subset of Engram.</p>
   </div>
 </section>
 
-<section class="grid three">
+<section class="grid three fade-reveal">
   {% for tool in tools %}
-  <div class="card">
+  <div class="surface-block">
     <h3>{{ tool.name }}</h3>
     <p>{{ tool.summary }}</p>
   </div>
   {% endfor %}
 </section>
 
-<section class="section-title">
+<section class="section-title fade-reveal">
   <div>
     <h2>Starter skills</h2>
     <p class="subtle">These skills are available as JSON or plain markdown for agent bootstrapping.</p>
   </div>
 </section>
 
-<section class="grid two">
+<section class="grid two fade-reveal">
   {% for skill in skills %}
-  <div class="card">
+  <div class="surface-block">
     <h3>{{ skill.title }}</h3>
     <p>{{ skill.summary }}</p>
     <div class="meta">
