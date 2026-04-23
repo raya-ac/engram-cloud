@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote
 
 from sqlalchemy import text
 
@@ -32,7 +32,7 @@ def ensure_workspace_schema(schema_name: str) -> None:
 def workspace_engram_dsn(schema_name: str) -> str:
     base = settings.engram_postgres_dsn
     sep = "&" if "?" in base else "?"
-    return f"{base}{sep}options={quote_plus(f'-c search_path={schema_name}')}"
+    return f"{base}{sep}options={quote(f'-c search_path={schema_name}', safe='')}"
 
 
 def workspace_config(schema_name: str) -> Config:
