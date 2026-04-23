@@ -53,6 +53,30 @@
 
 <section class="section-title fade-reveal">
   <div>
+    <h2>Integration recipes</h2>
+    <p class="subtle">Short paths for common agent and service wiring.</p>
+  </div>
+</section>
+
+<section class="grid two fade-reveal">
+  {% for recipe in recipes %}
+  <div class="surface-block">
+    <h3>{{ recipe.name }}</h3>
+    <div class="badge-row" style="margin-top:0;margin-bottom:12px">
+      {% for step in recipe.steps %}
+      <span class="badge">{{ step }}</span>
+      {% endfor %}
+    </div>
+    <div class="copy-row">
+      <div class="code-block" id="agent-recipe-{{ loop.index }}">{{ recipe.command }}</div>
+      <button class="button copy-button" data-copy="#agent-recipe-{{ loop.index }}" type="button">Copy</button>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
     <h2>Starter skills</h2>
     <p class="subtle">Small, deliberate instructions that help agents use hosted memory well from the first run.</p>
   </div>

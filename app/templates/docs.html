@@ -114,6 +114,25 @@ X-API-Key: engram_...</div>
 
 <section class="section-title fade-reveal">
   <div>
+    <h2>Quick commands</h2>
+    <p class="subtle">Copyable requests for the main hosted flows.</p>
+  </div>
+</section>
+
+<section class="grid two fade-reveal">
+  {% for recipe in recipes %}
+  <div class="surface-block">
+    <h3>{{ recipe.name }}</h3>
+    <div class="copy-row">
+      <div class="code-block" id="docs-recipe-{{ loop.index }}">{{ recipe.command }}</div>
+      <button class="button copy-button" data-copy="#docs-recipe-{{ loop.index }}" type="button">Copy</button>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
     <h2>Bridge tools</h2>
     <p class="subtle">The hosted bridge intentionally exposes a smaller, reliable subset of Engram.</p>
   </div>
@@ -144,6 +163,22 @@ X-API-Key: engram_...</div>
       <span>/api/skills/{{ skill.name }}</span>
       <span>/api/skills/{{ skill.name }}.md</span>
     </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Feature matrix</h2>
+    <p class="subtle">The service surface is intentionally small, but it covers the pieces agents need in production.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  {% for feature in features %}
+  <div class="surface-block">
+    <h3>{{ feature.name }}</h3>
+    <p>{{ feature.summary }}</p>
   </div>
   {% endfor %}
 </section>

@@ -7,7 +7,7 @@ client = TestClient(app)
 
 
 def test_public_service_pages_render():
-    for path in ("/", "/agents", "/docs"):
+    for path in ("/", "/agents", "/docs", "/examples", "/security", "/status", "/changelog"):
         response = client.get(path)
         assert response.status_code == 200
     docs = client.get("/docs")
@@ -16,6 +16,22 @@ def test_public_service_pages_render():
     pricing = client.get("/pricing", follow_redirects=False)
     assert pricing.status_code == 302
     assert pricing.headers["location"] == "/docs"
+
+
+def test_public_service_metadata_routes():
+    service_status = client.get("/api/service/status")
+    assert service_status.status_code == 200
+    assert service_status.json()["service"] == "memorylayer"
+    assert service_status.json()["features"] >= 20
+
+    robots = client.get("/robots.txt")
+    assert robots.status_code == 200
+    assert "Sitemap:" in robots.text
+
+    sitemap = client.get("/sitemap.xml")
+    assert sitemap.status_code == 200
+    assert "/examples" in sitemap.text
+    assert "/security" in sitemap.text
 
 
 def test_skills_endpoints_expose_json_and_markdown():

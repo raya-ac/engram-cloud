@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -34,6 +34,81 @@ app = FastAPI(title="Engram Cloud", version="0.1.0", docs_url=None, redoc_url=No
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+SERVICE_FEATURES = [
+    {"name": "Workspace isolation", "summary": "Each workspace receives its own Engram schema and service boundary."},
+    {"name": "GitHub login", "summary": "User identity is handled through GitHub OAuth with no local passwords."},
+    {"name": "Workspace invites", "summary": "Issue shareable invites with role-aware membership records."},
+    {"name": "Scoped API keys", "summary": "Generate workspace keys for agents, apps, and ingestion pipelines."},
+    {"name": "API usage trail", "summary": "Track service calls by route, key, and workspace."},
+    {"name": "Audit history", "summary": "Record workspace actions such as keys, invites, memory writes, and bridge calls."},
+    {"name": "Hosted MCP bridge", "summary": "Call selected Engram tools through a simple HTTP JSON bridge."},
+    {"name": "Bootstrap payloads", "summary": "Discover URLs, headers, tools, and skills from one workspace endpoint."},
+    {"name": "Starter skills", "summary": "Download markdown skills that teach agents how to use hosted memory."},
+    {"name": "Recent memory API", "summary": "Load the latest workspace memories without custom query code."},
+    {"name": "Search API", "summary": "Run hosted retrieval against the real Engram memory graph."},
+    {"name": "Remember API", "summary": "Store narrative, fact, and procedure memories over HTTP."},
+    {"name": "Decision memory", "summary": "Bridge tool support for durable decisions and rationale."},
+    {"name": "Project memory", "summary": "Bridge tool support for structured project state."},
+    {"name": "Focus briefs", "summary": "Generate compact task context from the memory graph."},
+    {"name": "Hotspot detection", "summary": "Find dense or high-activity regions in workspace memory."},
+    {"name": "Query comparison", "summary": "Compare retrieval overlap between two prompts or topics."},
+    {"name": "OpenAPI contract", "summary": "Expose the machine-readable API contract for clients."},
+    {"name": "VPS runtime", "summary": "Run a warm Python service with direct Postgres access."},
+    {"name": "Postgres-first storage", "summary": "Keep app metadata and Engram workspace data in Postgres."},
+    {"name": "Dashboard search", "summary": "Search and inspect workspace memory from the browser."},
+    {"name": "Dashboard write path", "summary": "Store memories manually when an operator needs to pin state."},
+    {"name": "Key revocation", "summary": "Revoke workspace API keys without touching the memory store."},
+    {"name": "Public service docs", "summary": "Keep setup, endpoints, bridge tools, and skills documented in-app."},
+]
+
+
+INTEGRATION_RECIPES = [
+    {
+        "name": "Codex-style handoff",
+        "steps": ["Load bootstrap", "Recall recent context", "Work normally", "Remember outcome"],
+        "command": "curl -H \"Authorization: Bearer $MEMORYLAYER_KEY\" \"$MEMORYLAYER_URL/api/workspaces/$SLUG/bootstrap\"",
+    },
+    {
+        "name": "Hosted MCP bridge",
+        "steps": ["List bridge tools", "POST tool name and args", "Store audit trail"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"tool\":\"recall_recent\",\"args\":{\"limit\":5}}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp\"",
+    },
+    {
+        "name": "Ingestion pipeline",
+        "steps": ["Create a service key", "POST memories", "Watch usage events"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"content\":\"Deployment completed\",\"layer\":\"episodic\",\"memory_type\":\"fact\"}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/remember\"",
+    },
+    {
+        "name": "Usage monitor",
+        "steps": ["Poll usage endpoint", "Group by route", "Rotate quiet or noisy keys"],
+        "command": "curl -H \"Authorization: Bearer $MEMORYLAYER_KEY\" \"$MEMORYLAYER_URL/api/workspaces/$SLUG/usage\"",
+    },
+]
+
+
+CHANGELOG_ENTRIES = [
+    {
+        "version": "Cloud host",
+        "date": "2026-04-24",
+        "changes": [
+            "Added structured API usage tracking per workspace key.",
+            "Added hosted usage endpoint and dashboard activity stream.",
+            "Redesigned the public site around a cleaner infrastructure-style shell.",
+            "Added hosted MCP bridge, bootstrap payloads, and downloadable starter skills.",
+        ],
+    },
+    {
+        "version": "Initial service",
+        "date": "2026-04-23",
+        "changes": [
+            "Added GitHub login, workspace provisioning, invites, and API keys.",
+            "Provisioned one Engram schema per workspace.",
+            "Deployed Memorylayer to the VPS at memorylayer.run.",
+        ],
+    },
+]
 
 
 def db_session():
@@ -308,12 +383,12 @@ def startup() -> None:
 async def home(request: Request):
     if current_user_id(request):
         return RedirectResponse("/app", status_code=302)
-    return render(request, "landing.html")
+    return render(request, "landing.html", features=SERVICE_FEATURES, recipes=INTEGRATION_RECIPES)
 
 
 @app.get("/agents", response_class=HTMLResponse)
 async def agents_page(request: Request):
-    return render(request, "agents.html", skills=starter_skill_list())
+    return render(request, "agents.html", skills=starter_skill_list(), recipes=INTEGRATION_RECIPES)
 
 
 @app.get("/pricing")
@@ -328,7 +403,64 @@ async def docs_page(request: Request):
         "docs.html",
         skills=starter_skill_list(),
         tools=SUPPORTED_TOOLS,
+        features=SERVICE_FEATURES,
+        recipes=INTEGRATION_RECIPES,
         openapi_url=f"{settings.base_url}/openapi.json",
+    )
+
+
+@app.get("/security", response_class=HTMLResponse)
+async def security_page(request: Request):
+    return render(request, "security.html")
+
+
+@app.get("/status", response_class=HTMLResponse)
+async def status_page(request: Request):
+    return render(request, "status.html", features=SERVICE_FEATURES)
+
+
+@app.get("/examples", response_class=HTMLResponse)
+async def examples_page(request: Request):
+    return render(request, "examples.html", recipes=INTEGRATION_RECIPES)
+
+
+@app.get("/changelog", response_class=HTMLResponse)
+async def changelog_page(request: Request):
+    return render(request, "changelog.html", entries=CHANGELOG_ENTRIES)
+
+
+@app.get("/api/service/status")
+async def api_service_status():
+    return JSONResponse(
+        {
+            "status": "ok",
+            "service": "memorylayer",
+            "runtime": "vps",
+            "database": "postgres",
+            "features": len(SERVICE_FEATURES),
+            "base_url": settings.base_url,
+        }
+    )
+
+
+@app.get("/robots.txt")
+async def robots_txt():
+    return PlainTextResponse(
+        "User-agent: *\nAllow: /\nSitemap: " + f"{settings.base_url}/sitemap.xml\n",
+        media_type="text/plain; charset=utf-8",
+    )
+
+
+@app.get("/sitemap.xml")
+async def sitemap_xml():
+    routes = ["", "agents", "docs", "examples", "security", "status", "changelog", "login"]
+    body = "\n".join(
+        f"  <url><loc>{settings.base_url}/{route}</loc></url>" if route else f"  <url><loc>{settings.base_url}/</loc></url>"
+        for route in routes
+    )
+    return Response(
+        f"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{body}\n</urlset>\n",
+        media_type="application/xml",
     )
 
 

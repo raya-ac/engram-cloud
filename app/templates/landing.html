@@ -55,6 +55,33 @@
 
 <section class="section-title fade-reveal">
   <div>
+    <h2>Live surface area</h2>
+    <p class="subtle">The site now documents the operational pieces that make Memorylayer useful as a hosted service.</p>
+  </div>
+  <a href="/status" class="button">View service status</a>
+</section>
+
+<section class="grid four fade-reveal">
+  <div class="surface-block">
+    <div class="stat">{{ features|length }}</div>
+    <p class="subtle">service capabilities tracked in the product surface</p>
+  </div>
+  <div class="surface-block">
+    <div class="stat">9</div>
+    <p class="subtle">hosted bridge tools exposed for agent workflows</p>
+  </div>
+  <div class="surface-block">
+    <div class="stat">4</div>
+    <p class="subtle">integration recipes ready to copy into clients</p>
+  </div>
+  <div class="surface-block">
+    <div class="stat">0</div>
+    <p class="subtle">pricing tiers; the service is free while it hardens</p>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
     <h2>One service around the engine</h2>
     <p class="subtle">The core package stays focused on memory behavior. Memorylayer handles the operational surface around it.</p>
   </div>
@@ -80,7 +107,7 @@
         <p class="subtle">Use hosted endpoints for search, remember, recent memories, audit history, bootstrap, and a compact HTTP bridge for selected Engram tools.</p>
       </div>
       <div class="terminal-surface">
-        <div class="terminal-row"><span>Surface</span><div>`/bootstrap`, `/status`, `/search`, `/remember`, `/audit`, `/mcp`</div></div>
+        <div class="terminal-row"><span>Surface</span><div>`/bootstrap`, `/status`, `/search`, `/remember`, `/audit`, `/usage`, `/mcp`</div></div>
         <div class="terminal-row"><span>Auth</span><div>Workspace-scoped keys via `Authorization: Bearer` or `X-API-Key`</div></div>
       </div>
     </div>
@@ -101,23 +128,38 @@
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>Made to sit behind agents</h2>
-    <p class="subtle">The service is shaped for real agent integration, not just for browsing a dashboard.</p>
+    <h2>What changed this round</h2>
+    <p class="subtle">A practical feature matrix, agent examples, security posture, status page, changelog, copyable snippets, and usage-aware docs.</p>
   </div>
 </section>
 
 <section class="grid three fade-reveal">
+  {% for feature in features[:12] %}
   <div class="surface-block">
-    <h3>Bootstrap quickly</h3>
-    <p>Each workspace exposes a bootstrap payload with API URLs, bridge URLs, and starter skills for Codex-style setups.</p>
+    <h3>{{ feature.name }}</h3>
+    <p>{{ feature.summary }}</p>
   </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Copy a workflow</h2>
+    <p class="subtle">Use these as starting points for agents, ingestion jobs, and usage monitors.</p>
+  </div>
+  <a href="/examples" class="button">All examples</a>
+</section>
+
+<section class="grid two fade-reveal">
+  {% for recipe in recipes[:2] %}
   <div class="surface-block">
-    <h3>Use hosted memory directly</h3>
-    <p>Agents can work through the service instead of assuming they have local access to the underlying Engram runtime.</p>
+    <h3>{{ recipe.name }}</h3>
+    <p class="subtle">{{ recipe.steps|join(" -> ") }}</p>
+    <div class="copy-row" style="margin-top:14px">
+      <div class="code-block" id="home-recipe-{{ loop.index }}">{{ recipe.command }}</div>
+      <button class="button copy-button" data-copy="#home-recipe-{{ loop.index }}" type="button">Copy</button>
+    </div>
   </div>
-  <div class="surface-block">
-    <h3>Stay close to the engine</h3>
-    <p>It already has the right shape for dedicated deployments, usage controls, and future agent session capture.</p>
-  </div>
+  {% endfor %}
 </section>
 {% endblock %}

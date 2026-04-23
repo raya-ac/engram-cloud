@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Examples · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">Examples</div>
+    <h2>Real calls for real agents.</h2>
+    <p>Use these snippets to connect an agent, ingestion job, or monitoring script to a hosted Memorylayer workspace.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/docs" class="button">Read docs</a>
+      <a href="/login/github" class="button primary">Create workspace</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+      <div class="signal-line"><strong>Variables</strong><span>Set MEMORYLAYER_URL, SLUG, and MEMORYLAYER_KEY first.</span></div>
+      <div class="signal-line"><strong>Auth</strong><span>Use Authorization: Bearer or X-API-Key.</span></div>
+      <div class="signal-line"><strong>Observe</strong><span>Every authenticated call appears in workspace usage.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Copyable recipes</h2>
+    <p class="subtle">Each recipe maps to a concrete hosted feature.</p>
+  </div>
+</section>
+
+<section class="section-stack">
+  {% for recipe in recipes %}
+  <div class="detail-block fade-reveal">
+    <div class="detail-grid">
+      <div>
+        <h3>{{ recipe.name }}</h3>
+        <div class="badge-row" style="margin-top:10px">
+          {% for step in recipe.steps %}
+          <span class="badge">{{ step }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="copy-row">
+        <div class="code-block" id="example-recipe-{{ loop.index }}">{{ recipe.command }}</div>
+        <button class="button copy-button" data-copy="#example-recipe-{{ loop.index }}" type="button">Copy</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Environment block</h2>
+    <p class="subtle">A shared setup block for shell scripts and agent launchers.</p>
+  </div>
+</section>
+
+<div class="copy-row fade-reveal">
+  <div class="code-block" id="example-env">export MEMORYLAYER_URL="https://memorylayer.run"
+export SLUG="your-workspace"
+export MEMORYLAYER_KEY="engram_..."</div>
+  <button class="button copy-button" data-copy="#example-env" type="button">Copy</button>
+</div>
+{% endblock %}

@@ -47,7 +47,8 @@ For the actual memory runtime, a VPS is the clean default.
 - workspace bootstrap endpoint for agents
 - hosted MCP-style bridge for selected Engram tools
 - starter skill downloads in JSON and markdown
-- public docs and agent setup pages for the hosted service
+- public docs, examples, service status, security, and changelog pages
+- robots.txt and sitemap.xml for the public site
 
 ## Stack
 
@@ -75,6 +76,10 @@ uvicorn app.main:app --reload --port 8090
 Open:
 
 - [http://127.0.0.1:8090](http://127.0.0.1:8090)
+- [http://127.0.0.1:8090/docs](http://127.0.0.1:8090/docs)
+- [http://127.0.0.1:8090/examples](http://127.0.0.1:8090/examples)
+- [http://127.0.0.1:8090/security](http://127.0.0.1:8090/security)
+- [http://127.0.0.1:8090/status](http://127.0.0.1:8090/status)
 
 Run tests:
 
@@ -144,3 +149,10 @@ The service also exposes starter skills:
 - `GET /api/skills`
 - `GET /api/skills/{name}`
 - `GET /api/skills/{name}.md`
+
+Public service metadata:
+
+- `GET /api/health`
+- `GET /api/service/status`
+- `GET /robots.txt`
+- `GET /sitemap.xml`

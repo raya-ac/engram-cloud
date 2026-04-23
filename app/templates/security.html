@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Security · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">Security posture</div>
+    <h2>Small surface, clear boundaries.</h2>
+    <p>Memorylayer keeps the service model narrow: GitHub identity, workspace-scoped keys, hashed secrets, audit trails, and Postgres-backed isolation.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/docs" class="button">API docs</a>
+      <a href="/status" class="button primary">Service status</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+      <div class="signal-line"><strong>No passwords</strong><span>GitHub OAuth handles user authentication.</span></div>
+      <div class="signal-line"><strong>Scoped keys</strong><span>Workspace API keys can be revoked independently.</span></div>
+      <div class="signal-line"><strong>Auditability</strong><span>Memory writes, bridge calls, invites, keys, and usage are recorded.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Controls</h2>
+    <p class="subtle">The current controls are designed to be understandable and inspectable.</p>
+  </div>
+</section>
+
+<table class="compact-table fade-reveal">
+  <thead><tr><th>Area</th><th>Current behavior</th><th>Operator action</th></tr></thead>
+  <tbody>
+    <tr><td>Identity</td><td>GitHub OAuth only; no service-side passwords.</td><td>Use GitHub account controls and organization policy.</td></tr>
+    <tr><td>API keys</td><td>Tokens are shown once, stored as hashes, and scoped to one workspace.</td><td>Use separate keys per agent or integration.</td></tr>
+    <tr><td>Revocation</td><td>Keys can be revoked from the workspace dashboard.</td><td>Rotate keys when an integration changes hands.</td></tr>
+    <tr><td>Isolation</td><td>Each workspace uses its own Engram schema.</td><td>Create separate workspaces for separate projects or teams.</td></tr>
+    <tr><td>Usage</td><td>Authenticated calls are recorded with route, key, status, and timestamp.</td><td>Review usage before rotating or deleting keys.</td></tr>
+    <tr><td>Audit</td><td>Workspace actions and bridge calls write audit entries.</td><td>Use the audit feed to explain state changes.</td></tr>
+  </tbody>
+</table>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Responsible use</h2>
+    <p class="subtle">Hosted memory is durable infrastructure. Store useful context, not secrets.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block"><h3>Do not store secrets</h3><p>Use secret managers for API keys, credentials, and tokens. Memorylayer is for context.</p></div>
+  <div class="surface-block"><h3>Keep entries specific</h3><p>Prefer decisions, outcomes, file paths, and verified state over vague transcripts.</p></div>
+  <div class="surface-block"><h3>Use one key per integration</h3><p>Separate keys make usage trails readable and revocation safe.</p></div>
+</section>
+{% endblock %}

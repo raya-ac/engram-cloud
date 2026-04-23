@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Status · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">Service status</div>
+    <h2>Online, simple, inspectable.</h2>
+    <p>This page describes the live service shape. For machines, use the service status JSON endpoint.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/api/service/status" class="button primary">Status JSON</a>
+      <a href="/changelog" class="button">Changelog</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+      <div class="signal-line"><strong>Runtime</strong><span>VPS-hosted FastAPI service.</span></div>
+      <div class="signal-line"><strong>Database</strong><span>Postgres app metadata and Engram workspace schemas.</span></div>
+      <div class="signal-line"><strong>Public health</strong><span>`/api/health` and `/api/service/status`.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="grid four fade-reveal">
+  <div class="surface-block"><div class="stat">OK</div><p class="subtle">public service status</p></div>
+  <div class="surface-block"><div class="stat">VPS</div><p class="subtle">runtime target</p></div>
+  <div class="surface-block"><div class="stat">PG</div><p class="subtle">storage backend</p></div>
+  <div class="surface-block"><div class="stat">{{ features|length }}</div><p class="subtle">tracked capabilities</p></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Operational endpoints</h2>
+    <p class="subtle">Useful URLs for operators and uptime checks.</p>
+  </div>
+</section>
+
+<table class="compact-table fade-reveal">
+  <thead><tr><th>Endpoint</th><th>Purpose</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><code>/api/health</code></td><td>Minimal public health check.</td><td>None</td></tr>
+    <tr><td><code>/api/service/status</code></td><td>Public service metadata and feature count.</td><td>None</td></tr>
+    <tr><td><code>/api/workspaces/{slug}/usage</code></td><td>Workspace API activity and route counts.</td><td>Workspace key</td></tr>
+    <tr><td><code>/api/workspaces/{slug}/audit</code></td><td>Workspace audit history.</td><td>Workspace key</td></tr>
+    <tr><td><code>/openapi.json</code></td><td>Machine-readable API contract.</td><td>None</td></tr>
+  </tbody>
+</table>
+{% endblock %}

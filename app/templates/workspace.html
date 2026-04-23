@@ -34,6 +34,16 @@
 <div class="split">
   <div class="grid">
     <div class="card">
+      <h3>Workspace setup checklist</h3>
+      <div class="list">
+        <div class="item"><div>Create a dedicated API key for each agent or integration.</div><div class="meta"><span>key hygiene</span></div></div>
+        <div class="item"><div>Call bootstrap once and store the returned URLs in your agent config.</div><div class="meta"><span>agent setup</span></div></div>
+        <div class="item"><div>Use recent memory at session start and remember outcomes before stopping.</div><div class="meta"><span>handoff</span></div></div>
+        <div class="item"><div>Review API activity before rotating or revoking keys.</div><div class="meta"><span>operations</span></div></div>
+      </div>
+    </div>
+
+    <div class="card">
       <h3>Search memory</h3>
       <form method="post" action="/app/workspaces/{{ workspace.slug }}/search">
         <input type="text" name="query" value="{{ search_query or '' }}" placeholder="Search this workspace" required>
@@ -214,6 +224,27 @@
         <div class="item">
           <div>{{ settings.base_url }}/docs</div>
           <div class="meta"><span>docs</span><span>openapi and setup</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Copy starter commands</h3>
+      <p class="subtle" style="margin-bottom:12px">Replace the API key before running these locally.</p>
+      <div class="list">
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-bootstrap-cmd">curl -H "Authorization: Bearer engram_..." "{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/bootstrap"</div>
+            <button class="button copy-button" data-copy="#workspace-bootstrap-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>bootstrap</span></div>
+        </div>
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-recall-cmd">curl -X POST -H "Authorization: Bearer engram_..." -H "Content-Type: application/json" -d '{"tool":"recall_recent","args":{"limit":5}}' "{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/mcp"</div>
+            <button class="button copy-button" data-copy="#workspace-recall-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>bridge</span><span>recent context</span></div>
         </div>
       </div>
     </div>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Changelog · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">Changelog</div>
+    <h2>The hosted service is moving fast.</h2>
+    <p>Short release notes for the cloud host, product surface, and agent-facing API.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/status" class="button primary">Status</a>
+      <a href="/docs" class="button">Docs</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+      <div class="signal-line"><strong>Current focus</strong><span>Hosted API, dashboard visibility, and agent setup.</span></div>
+      <div class="signal-line"><strong>Next obvious work</strong><span>Background jobs, team management depth, and client SDKs.</span></div>
+      <div class="signal-line"><strong>Principle</strong><span>Keep the cloud layer thin around the real Engram engine.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="timeline fade-reveal">
+  {% for entry in entries %}
+  <div class="timeline-item">
+    <div class="timeline-date">{{ entry.date }}<br>{{ entry.version }}</div>
+    <div>
+      {% for item in entry.changes %}
+      <div class="item">{{ item }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}
