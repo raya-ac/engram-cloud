@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Pricing · Engram Cloud{% endblock %}
+{% block body %}
+<section class="hero">
+  <div>
+    <div class="badge-row" style="margin-top:0;margin-bottom:12px">
+      <span class="badge">Hosted memory</span>
+      <span class="badge">Per workspace</span>
+      <span class="badge">VPS-backed runtime</span>
+    </div>
+    <h2>Price the service like infrastructure, not a toy.</h2>
+    <p>Engram Cloud is meant to sit behind real agents and real teams. The service includes hosted memory, API keys, agent bootstrap, and the workspace dashboard in one surface.</p>
+  </div>
+  <div class="metrics">
+    <div class="metric">
+      <h3>Starter</h3>
+      <p>One workspace, basic API usage, dashboard access, and hosted memory for smaller teams or solo operators.</p>
+    </div>
+    <div class="metric">
+      <h3>Team</h3>
+      <p>Multiple workspaces, invites, more API throughput, and the hosted MCP bridge for agent workflows.</p>
+    </div>
+    <div class="metric">
+      <h3>Dedicated</h3>
+      <p>Private deployment, custom retention, and isolated runtime for teams that want the service shape without sharing infrastructure.</p>
+    </div>
+  </div>
+</section>
+
+<section class="grid three">
+  <div class="card">
+    <div class="stat">$29</div>
+    <h3>Starter</h3>
+    <p>Hosted memory for one workspace, suitable for individual agent setups and internal experiments.</p>
+  </div>
+  <div class="card">
+    <div class="stat">$149</div>
+    <h3>Team</h3>
+    <p>Shared workspaces, invites, API keys, and better agent throughput for teams using Engram every day.</p>
+  </div>
+  <div class="card">
+    <div class="stat">Custom</div>
+    <h3>Dedicated</h3>
+    <p>Single-tenant deployment, migration help, and direct support for teams that want a managed Engram service.</p>
+  </div>
+</section>
+{% endblock %}

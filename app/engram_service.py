@@ -14,6 +14,19 @@ from app.config import settings
 from app.db import engine
 
 
+TOOL_METHODS = {
+    "status": "_status",
+    "recall": "_recall",
+    "recall_recent": "_recall_recent",
+    "remember": "_remember",
+    "remember_decision": "_remember_decision",
+    "remember_project": "_remember_project",
+    "focus_brief": "_focus_brief",
+    "hotspots": "_hotspots",
+    "compare_queries": "_compare_queries",
+}
+
+
 def slugify(value: str) -> str:
     value = value.strip().lower()
     value = re.sub(r"[^a-z0-9]+", "-", value)
@@ -97,3 +110,16 @@ def workspace_recent_memories(schema_name: str, limit: int = 10) -> list[dict]:
         ]
     finally:
         store.close()
+
+
+def workspace_tool_call(schema_name: str, tool_name: str, args: dict | None = None):
+    method_name = TOOL_METHODS.get(tool_name)
+    if not method_name:
+        raise ValueError(f"Unsupported tool: {tool_name}")
+
+    server = MCPServer(workspace_config(schema_name))
+    try:
+        method = getattr(server, method_name)
+        return method(args or {})
+    finally:
+        server.store.close()

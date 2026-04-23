@@ -5,13 +5,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import false, func, select
 from sqlalchemy import delete
 
+from app.agent_catalog import STARTER_SKILLS, SUPPORTED_TOOLS, render_skill_markdown, starter_skill_list
 from app.auth import current_user_id, login_required, oauth
 from app.config import settings
 from app.db import Base, SessionLocal, engine
@@ -23,6 +24,7 @@ from app.engram_service import (
     workspace_remember,
     workspace_search,
     workspace_status,
+    workspace_tool_call,
 )
 from app.models import AuditEvent, User, Workspace, WorkspaceApiKey, WorkspaceInvite, WorkspaceMember
 from app.security import digest_token, mint_prefixed_token
@@ -184,6 +186,15 @@ def api_key_from_request(authorization: str | None, x_api_key: str | None) -> st
     return None
 
 
+def require_api_workspace(db, slug: str, authorization: str | None, x_api_key: str | None):
+    token = api_key_from_request(authorization, x_api_key)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing API key")
+    api_key = resolve_api_workspace(db, slug, token)
+    workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+    return workspace, api_key
+
+
 def resolve_api_workspace(db, slug: str, token: str) -> WorkspaceApiKey:
     token_hash = digest_token(token)
     api_key = db.execute(
@@ -224,6 +235,27 @@ async def home(request: Request):
     if current_user_id(request):
         return RedirectResponse("/app", status_code=302)
     return render(request, "landing.html")
+
+
+@app.get("/agents", response_class=HTMLResponse)
+async def agents_page(request: Request):
+    return render(request, "agents.html", skills=starter_skill_list())
+
+
+@app.get("/pricing", response_class=HTMLResponse)
+async def pricing_page(request: Request):
+    return render(request, "pricing.html")
+
+
+@app.get("/docs", response_class=HTMLResponse)
+async def docs_page(request: Request):
+    return render(
+        request,
+        "docs.html",
+        skills=starter_skill_list(),
+        tools=SUPPORTED_TOOLS,
+        openapi_url=f"{settings.base_url}/openapi.json",
+    )
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -608,11 +640,7 @@ async def api_workspace_status(
 ):
     db = SessionLocal()
     try:
-        token = api_key_from_request(authorization, x_api_key)
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing API key")
-        api_key = resolve_api_workspace(db, slug, token)
-        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
         return JSONResponse({"workspace": workspace.slug, "stats": workspace_status(workspace.schema_name)})
     finally:
         db.close()
@@ -627,11 +655,7 @@ async def api_workspace_recent(
 ):
     db = SessionLocal()
     try:
-        token = api_key_from_request(authorization, x_api_key)
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing API key")
-        api_key = resolve_api_workspace(db, slug, token)
-        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
         return JSONResponse({"workspace": workspace.slug, "memories": workspace_recent_memories(workspace.schema_name, limit=limit)})
     finally:
         db.close()
@@ -651,11 +675,7 @@ async def api_workspace_search(
         raise HTTPException(status_code=400, detail="query is required")
     db = SessionLocal()
     try:
-        token = api_key_from_request(authorization, x_api_key)
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing API key")
-        api_key = resolve_api_workspace(db, slug, token)
-        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
         return JSONResponse({"workspace": workspace.slug, "results": workspace_search(workspace.schema_name, query=query, top_k=top_k)})
     finally:
         db.close()
@@ -676,11 +696,7 @@ async def api_workspace_remember(
         raise HTTPException(status_code=400, detail="content is required")
     db = SessionLocal()
     try:
-        token = api_key_from_request(authorization, x_api_key)
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing API key")
-        api_key = resolve_api_workspace(db, slug, token)
-        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         result = workspace_remember(workspace.schema_name, content=content, layer=layer, memory_type=memory_type)
         record_audit_event(
             db,
@@ -705,11 +721,134 @@ async def api_workspace_audit(
 ):
     db = SessionLocal()
     try:
-        token = api_key_from_request(authorization, x_api_key)
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing API key")
-        api_key = resolve_api_workspace(db, slug, token)
-        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
         return JSONResponse({"workspace": workspace.slug, "events": _workspace_audit_feed(db, workspace.id, limit=limit)})
     finally:
         db.close()
+
+
+@app.get("/api/workspaces/{slug}/bootstrap")
+async def api_workspace_bootstrap(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        base_headers = {"Authorization": "Bearer <workspace-api-key>"}
+        return JSONResponse(
+            {
+                "workspace": workspace.slug,
+                "service": {
+                    "name": "Engram Cloud",
+                    "base_url": settings.base_url,
+                    "mcp_bridge_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/mcp",
+                    "docs_url": f"{settings.base_url}/docs",
+                    "openapi_url": f"{settings.base_url}/openapi.json",
+                },
+                "api": {
+                    "status_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/status",
+                    "search_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/search",
+                    "remember_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/remember",
+                    "recent_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/memories/recent",
+                    "audit_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/audit",
+                    "headers": base_headers,
+                },
+                "mcp": {
+                    "transport": "http-json",
+                    "tools_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/mcp/tools",
+                    "tool_names": [tool["name"] for tool in SUPPORTED_TOOLS],
+                    "headers": base_headers,
+                },
+                "skills": [
+                    {
+                        "name": skill["name"],
+                        "title": skill["title"],
+                        "download_url": f"{settings.base_url}/api/skills/{skill['name']}",
+                        "markdown_url": f"{settings.base_url}/api/skills/{skill['name']}.md",
+                    }
+                    for skill in starter_skill_list()
+                ],
+                "api_key": {"label": api_key.label, "prefix": api_key.token_prefix},
+            }
+        )
+    finally:
+        db.close()
+
+
+@app.post("/api/workspaces/{slug}/mcp")
+async def api_workspace_mcp(
+    slug: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    payload = await request.json()
+    tool_name = payload.get("tool")
+    args = payload.get("args") or {}
+    if not tool_name:
+        raise HTTPException(status_code=400, detail="tool is required")
+
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        try:
+            result = workspace_tool_call(workspace.schema_name, tool_name, args)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        record_audit_event(
+            db,
+            workspace_id=workspace.id,
+            actor_user_id=None,
+            event_type="mcp.tool.called",
+            summary=f"API key {api_key.label} called {tool_name}",
+            metadata={"tool": tool_name},
+        )
+        db.commit()
+        return JSONResponse({"workspace": workspace.slug, "tool": tool_name, "result": result})
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/mcp/tools")
+async def api_workspace_mcp_tools(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        return JSONResponse(
+            {
+                "workspace": workspace.slug,
+                "transport": "http-json",
+                "call_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/mcp",
+                "tools": SUPPORTED_TOOLS,
+            }
+        )
+    finally:
+        db.close()
+
+
+@app.get("/api/skills")
+async def api_skills_index():
+    return JSONResponse({"skills": starter_skill_list()})
+
+
+@app.get("/api/skills/{skill_name}.md")
+async def api_skill_markdown(skill_name: str):
+    body = render_skill_markdown(skill_name)
+    if body is None:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    return PlainTextResponse(body, media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/api/skills/{skill_name}")
+async def api_skill_download(skill_name: str):
+    skill = STARTER_SKILLS.get(skill_name)
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    return JSONResponse(skill)

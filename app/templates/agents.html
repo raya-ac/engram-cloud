@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Agents · Engram Cloud{% endblock %}
+{% block body %}
+<section class="hero">
+  <div>
+    <div class="eyebrow">Agent integration</div>
+    <div class="badge-row" style="margin-top:0;margin-bottom:12px">
+      <span class="badge">Hosted MCP bridge</span>
+      <span class="badge">Starter skills</span>
+      <span class="badge">Workspace API keys</span>
+    </div>
+    <h2>Connect agents without building the glue yourself.</h2>
+    <p>Each workspace gets a hosted memory surface for recall, remember, recent history, and higher-level Engram tools. Agents can connect with a workspace API key and start using the service immediately.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/docs" class="button">Read docs</a>
+      <a href="/login/github" class="button primary">Create workspace</a>
+    </div>
+  </div>
+  <div class="metrics">
+    <div class="metric">
+      <h3>Bootstrap endpoint</h3>
+      <p>Every workspace can expose a bootstrap payload with the API URLs, MCP bridge URL, and starter skills.</p>
+    </div>
+    <div class="metric">
+      <h3>MCP-style bridge</h3>
+      <p>The hosted bridge maps selected Engram tools into one HTTP endpoint, which is useful when an agent cannot run a local MCP server.</p>
+    </div>
+    <div class="metric">
+      <h3>Downloadable starter skills</h3>
+      <p>Skills ship as plain markdown so teams can drop them into Codex or Claude-style workflows quickly.</p>
+    </div>
+  </div>
+</section>
+
+<section class="grid three">
+  {% for skill in skills %}
+  <div class="card">
+    <h3>{{ skill.title }}</h3>
+    <p>{{ skill.summary }}</p>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

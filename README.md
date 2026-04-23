@@ -1,6 +1,6 @@
 # Engram Cloud
 
-Hosted service layer for [Engram](https://github.com/raya-ac/engram): GitHub login, shared workspaces, API keys, invite flow, and a dashboard that makes the memory engine usable as a service.
+Hosted service layer for [Engram](https://github.com/raya-ac/engram): GitHub login, shared workspaces, API keys, invite flow, a hosted MCP bridge, downloadable starter skills, and a dashboard that makes the memory engine usable as a service.
 
 ## Why this exists
 
@@ -43,6 +43,10 @@ For the actual memory runtime, a VPS is the clean default.
 - workspace API keys
 - audit trail for workspace actions
 - JSON endpoints for search, remember, status, recent memories, and audit history
+- workspace bootstrap endpoint for agents
+- hosted MCP-style bridge for selected Engram tools
+- starter skill downloads in JSON and markdown
+- public docs and pricing pages for the hosted service
 
 ## Stack
 
@@ -119,3 +123,22 @@ If you want, use Vercel later for:
 - auth-only surfaces
 
 while the real Engram runtime lives on a VPS.
+
+## Agent integration
+
+Each workspace can expose:
+
+- `GET /api/workspaces/{slug}/bootstrap`
+- `GET /api/workspaces/{slug}/status`
+- `GET /api/workspaces/{slug}/memories/recent`
+- `POST /api/workspaces/{slug}/search`
+- `POST /api/workspaces/{slug}/remember`
+- `GET /api/workspaces/{slug}/audit`
+- `GET /api/workspaces/{slug}/mcp/tools`
+- `POST /api/workspaces/{slug}/mcp`
+
+The service also exposes starter skills:
+
+- `GET /api/skills`
+- `GET /api/skills/{name}`
+- `GET /api/skills/{name}.md`

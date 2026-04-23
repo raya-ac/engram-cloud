@@ -8,7 +8,7 @@
       <span class="badge">{{ workspace.schema_name }}</span>
     </div>
     <h2>{{ workspace.name }}</h2>
-    <p class="subtle">Hosted Engram workspace with its own graph, invite flow, API keys, and audit trail.</p>
+    <p class="subtle">Hosted Engram workspace with its own graph, invite flow, API keys, audit trail, and agent bootstrap surface.</p>
   </div>
 </section>
 
@@ -184,6 +184,29 @@
       {% else %}
       <div class="empty" style="margin-top:14px">No API keys yet.</div>
       {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Agent bootstrap</h3>
+      <p class="subtle" style="margin-bottom:12px">Use a workspace API key with these hosted endpoints.</p>
+      <div class="list">
+        <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/bootstrap</div>
+          <div class="meta"><span>bootstrap</span><span>agent setup</span></div>
+        </div>
+        <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/mcp</div>
+          <div class="meta"><span>mcp bridge</span><span>http-json</span></div>
+        </div>
+        <div class="item">
+          <div>{{ settings.base_url }}/api/skills</div>
+          <div class="meta"><span>starter skills</span><span>downloadable</span></div>
+        </div>
+        <div class="item">
+          <div>{{ settings.base_url }}/docs</div>
+          <div class="meta"><span>docs</span><span>openapi and setup</span></div>
+        </div>
+      </div>
     </div>
 
     <div class="card">

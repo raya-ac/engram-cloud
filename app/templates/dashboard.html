@@ -48,6 +48,14 @@
       <span class="badge">{{ entry.member_count }} member{% if entry.member_count != 1 %}s{% endif %}</span>
     </div>
     <div class="list" style="margin-top:16px">
+      {% if entry.health_error %}
+      <div class="item">
+        <div>Workspace needs attention before memory queries can run.</div>
+        <div class="meta">
+          <span>bootstrap issue</span>
+        </div>
+      </div>
+      {% endif %}
       {% for memory in entry.recent %}
       <div class="item">
         <div>{{ memory.content }}</div>

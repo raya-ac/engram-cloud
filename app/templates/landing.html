@@ -3,47 +3,78 @@
 {% block body %}
 <section class="hero">
   <div>
+    <div class="eyebrow">Hosted memory infrastructure</div>
     <div class="badge-row" style="margin-top:0;margin-bottom:12px">
       <span class="badge">GitHub login</span>
-      <span class="badge">Hosted dashboard</span>
+      <span class="badge">Hosted MCP bridge</span>
       <span class="badge">Workspace isolation</span>
     </div>
-    <h2>Run Engram like a real service.</h2>
-    <p>Engram Cloud gives the memory engine a proper home: GitHub login, shared workspaces, API keys, invites, and a dashboard that feels more like a product than a local sidecar.</p>
+    <h2>Memory infrastructure for agents and teams.</h2>
+    <p>Engram Cloud turns the Engram engine into a hosted service with workspaces, API keys, an MCP-style bridge, starter skills, and a dashboard teams can actually use.</p>
     <p class="warning">Recommended hosting: VPS. Engram works best as a warm Python service with direct Postgres access. Vercel is fine for a thin shell, but it is the wrong place to run the memory runtime itself.</p>
     <div class="nav" style="margin-top:18px">
       <a href="/login/github" class="button primary">Launch with GitHub</a>
-      <a href="https://github.com/raya-ac/engram" class="button">Core Engram repo</a>
+      <a href="/agents" class="button">See agent integration</a>
+      <a href="/docs" class="button">Read docs</a>
     </div>
   </div>
   <div class="metrics">
     <div class="metric">
-      <h3>Workspace memory that stays separated</h3>
-      <p>Each workspace gets its own Engram schema and backend config, so one team’s memory graph does not leak into another team’s data.</p>
+      <h3>Workspace memory that stays separate</h3>
+      <p>Each workspace gets its own Engram schema and backend config, so teams do not bleed into each other.</p>
     </div>
     <div class="metric">
-      <h3>Built for a long-lived deploy</h3>
-      <p>One Python service and one Postgres instance is enough to run the core cleanly. No awkward split between serverless edges and a stateful memory process.</p>
+      <h3>Built for a long-lived runtime</h3>
+      <p>One Python service and one Postgres instance is enough to run the core cleanly, without forcing a serverless shape onto a stateful memory engine.</p>
     </div>
     <div class="metric">
-      <h3>Ready for teams and agents</h3>
-      <p>It already has the right hooks for invites, API keys, audit history, and future session capture. The storage model does not need to change later.</p>
+      <h3>Ready for agents out of the box</h3>
+      <p>Workspace API keys, starter skills, and the hosted bridge are already there, so an agent can connect without local setup glue.</p>
     </div>
+  </div>
+</section>
+
+<section class="section-title">
+  <div>
+    <h2>What the service handles</h2>
+    <p class="subtle">The core Engram package stays focused on memory behavior. The hosted layer handles everything around it.</p>
   </div>
 </section>
 
 <section class="grid three">
   <div class="card">
-    <h3>Search, store, inspect</h3>
-    <p>Users can search the workspace graph, write new memories, and inspect recent activity without touching local config files or CLI state.</p>
+    <h3>Dashboard and workspace control</h3>
+    <p>Create workspaces, inspect stats, issue keys, invite collaborators, and watch recent activity from one surface.</p>
   </div>
   <div class="card">
-    <h3>GitHub identity</h3>
-    <p>GitHub OAuth keeps the first-run path short. Sign in, create a workspace, and start using it.</p>
+    <h3>Agent-facing service API</h3>
+    <p>Use hosted endpoints for search, remember, recent memories, audit history, and a compact MCP-style tool bridge.</p>
   </div>
   <div class="card">
     <h3>Same Engram core</h3>
-    <p>This uses the real Engram package underneath, so improvements in retrieval and memory behavior can move straight into the hosted layer.</p>
+    <p>The hosted layer still uses the actual Engram package underneath, so retrieval and memory improvements move straight through.</p>
+  </div>
+</section>
+
+<section class="section-title">
+  <div>
+    <h2>Made for service use</h2>
+    <p class="subtle">This is not a static shell. It is shaped like something you can put behind agents and teams.</p>
+  </div>
+</section>
+
+<section class="grid three">
+  <div class="card">
+    <h3>Bootstrap agents quickly</h3>
+    <p>Each workspace can expose a bootstrap payload with API URLs, bridge URLs, and starter skills for Codex-style setups.</p>
+  </div>
+  <div class="card">
+    <h3>Use hosted memory directly</h3>
+    <p>Agents can work through the service instead of assuming they have local access to the underlying Engram runtime.</p>
+  </div>
+  <div class="card">
+    <h3>Grow without re-architecting</h3>
+    <p>The service already has the right shape for invites, billing, dedicated deployments, and future agent session capture.</p>
   </div>
 </section>
 {% endblock %}
