@@ -1,21 +1,21 @@
 services:
   postgres:
     image: postgres:17
+    restart: unless-stopped
     environment:
       POSTGRES_USER: engram
       POSTGRES_PASSWORD: engram
       POSTGRES_DB: engram_cloud
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   web:
     build: .
+    restart: unless-stopped
     env_file:
       - .env
     ports:
-      - "8090:8090"
+      - "127.0.0.1:8090:8090"
     depends_on:
       - postgres
     volumes:
