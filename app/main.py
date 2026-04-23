@@ -30,7 +30,7 @@ from app.models import AuditEvent, User, Workspace, WorkspaceApiKey, WorkspaceIn
 from app.security import digest_token, mint_prefixed_token
 
 
-app = FastAPI(title="Engram Cloud", version="0.1.0")
+app = FastAPI(title="Engram Cloud", version="0.1.0", docs_url=None, redoc_url=None)
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))

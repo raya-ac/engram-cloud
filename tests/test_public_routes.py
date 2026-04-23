@@ -10,6 +10,8 @@ def test_public_service_pages_render():
     for path in ("/", "/agents", "/pricing", "/docs"):
         response = client.get(path)
         assert response.status_code == 200
+    docs = client.get("/docs")
+    assert "Plug agents into memory" in docs.text
 
 
 def test_skills_endpoints_expose_json_and_markdown():
