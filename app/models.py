@@ -37,6 +37,7 @@ class Workspace(Base):
     invites: Mapped[list["WorkspaceInvite"]] = relationship(back_populates="workspace")
     api_keys: Mapped[list["WorkspaceApiKey"]] = relationship(back_populates="workspace")
     audit_events: Mapped[list["AuditEvent"]] = relationship(back_populates="workspace")
+    api_events: Mapped[list["WorkspaceApiEvent"]] = relationship(back_populates="workspace")
 
 
 class WorkspaceMember(Base):
@@ -86,6 +87,7 @@ class WorkspaceApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     workspace: Mapped[Workspace] = relationship(back_populates="api_keys")
+    events: Mapped[list["WorkspaceApiEvent"]] = relationship(back_populates="api_key")
 
 
 class AuditEvent(Base):
@@ -100,3 +102,19 @@ class AuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     workspace: Mapped[Workspace] = relationship(back_populates="audit_events")
+
+
+class WorkspaceApiEvent(Base):
+    __tablename__ = "workspace_api_events"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    api_key_id: Mapped[str | None] = mapped_column(ForeignKey("workspace_api_keys.id"), nullable=True, index=True)
+    route: Mapped[str] = mapped_column(String, index=True)
+    method: Mapped[str] = mapped_column(String, default="GET")
+    status_code: Mapped[int] = mapped_column(default=200)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    workspace: Mapped[Workspace] = relationship(back_populates="api_events")
+    api_key: Mapped[WorkspaceApiKey | None] = relationship(back_populates="events")

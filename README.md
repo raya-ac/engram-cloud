@@ -42,11 +42,12 @@ For the actual memory runtime, a VPS is the clean default.
 - workspace invites
 - workspace API keys
 - audit trail for workspace actions
-- JSON endpoints for search, remember, status, recent memories, and audit history
+- structured API usage tracking per workspace key
+- JSON endpoints for search, remember, status, recent memories, audit history, and usage history
 - workspace bootstrap endpoint for agents
 - hosted MCP-style bridge for selected Engram tools
 - starter skill downloads in JSON and markdown
-- public docs and pricing pages for the hosted service
+- public docs and agent setup pages for the hosted service
 
 ## Stack
 
@@ -134,6 +135,7 @@ Each workspace can expose:
 - `POST /api/workspaces/{slug}/search`
 - `POST /api/workspaces/{slug}/remember`
 - `GET /api/workspaces/{slug}/audit`
+- `GET /api/workspaces/{slug}/usage`
 - `GET /api/workspaces/{slug}/mcp/tools`
 - `POST /api/workspaces/{slug}/mcp`
 

@@ -14,7 +14,7 @@
     <div class="public-rail">
       <div>
         <strong>JSON API</strong>
-        <p class="subtle">Status, search, remember, recent memory, audit history, and bootstrap.</p>
+        <p class="subtle">Status, search, remember, recent memory, audit history, usage tracking, and bootstrap.</p>
       </div>
       <div>
         <strong>HTTP MCP bridge</strong>
@@ -99,6 +99,11 @@ X-API-Key: engram_...</div>
     <h3>Audit</h3>
     <p><code>GET /api/workspaces/{slug}/audit</code></p>
     <p class="subtle">Inspect workspace-level key usage and memory activity.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Usage</h3>
+    <p><code>GET /api/workspaces/{slug}/usage</code></p>
+    <p class="subtle">Read per-key API activity, route counts, and the latest service calls.</p>
   </div>
   <div class="surface-block">
     <h3>MCP bridge</h3>

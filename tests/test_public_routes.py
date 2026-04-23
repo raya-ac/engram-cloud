@@ -12,6 +12,7 @@ def test_public_service_pages_render():
         assert response.status_code == 200
     docs = client.get("/docs")
     assert "Plug agents into memory" in docs.text
+    assert "/api/workspaces/{slug}/usage" in docs.text
     pricing = client.get("/pricing", follow_redirects=False)
     assert pricing.status_code == 302
     assert pricing.headers["location"] == "/docs"

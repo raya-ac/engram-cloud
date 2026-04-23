@@ -12,7 +12,7 @@
   </div>
 </section>
 
-<section class="grid three" style="margin-bottom:18px">
+<section class="grid four" style="margin-bottom:18px">
   <div class="card">
     <div class="stat">{{ stats.memories.total or 0 }}</div>
     <div class="subtle">total memories</div>
@@ -24,6 +24,10 @@
   <div class="card">
     <div class="stat">{{ stats.relationships or 0 }}</div>
     <div class="subtle">relationships</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ api_usage_summary.total_calls or 0 }}</div>
+    <div class="subtle">api calls tracked</div>
   </div>
 </section>
 
@@ -170,6 +174,7 @@
           <div>{{ key.label }}</div>
           <div class="meta">
             <span>{{ key.token_prefix }}</span>
+            <span>{{ api_usage_summary.key_calls.get(key.id, 0) }} calls</span>
             {% if key.last_used_at %}<span>used</span>{% endif %}
             {% if key.revoked_at %}<span>revoked</span>{% else %}<span>active</span>{% endif %}
           </div>
@@ -199,6 +204,10 @@
           <div class="meta"><span>mcp bridge</span><span>http-json</span></div>
         </div>
         <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/usage</div>
+          <div class="meta"><span>usage</span><span>per-key activity</span></div>
+        </div>
+        <div class="item">
           <div>{{ settings.base_url }}/api/skills</div>
           <div class="meta"><span>starter skills</span><span>downloadable</span></div>
         </div>
@@ -207,6 +216,37 @@
           <div class="meta"><span>docs</span><span>openapi and setup</span></div>
         </div>
       </div>
+    </div>
+
+    <div class="card">
+      <h3>API activity</h3>
+      <p class="subtle" style="margin-bottom:12px">Per-key service calls for agents, ingestion, and bridge traffic.</p>
+      {% if api_usage_events %}
+      <div class="list">
+        {% for event in api_usage_events %}
+        <div class="item">
+          <div>{{ event.method }} {{ event.route }}</div>
+          <div class="meta">
+            <span>{{ event.status_code }}</span>
+            <span>{{ event.api_key_label }}</span>
+            <span>{{ event.created_at }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No API calls recorded yet.</div>
+      {% endif %}
+      {% if api_usage_summary.top_routes %}
+      <div class="list" style="margin-top:14px">
+        {% for row in api_usage_summary.top_routes %}
+        <div class="item">
+          <div>{{ row.route }}</div>
+          <div class="meta"><span>{{ row.calls }} calls</span></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
 
     <div class="card">

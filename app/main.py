@@ -26,7 +26,7 @@ from app.engram_service import (
     workspace_status,
     workspace_tool_call,
 )
-from app.models import AuditEvent, User, Workspace, WorkspaceApiKey, WorkspaceInvite, WorkspaceMember
+from app.models import AuditEvent, User, Workspace, WorkspaceApiEvent, WorkspaceApiKey, WorkspaceInvite, WorkspaceMember
 from app.security import digest_token, mint_prefixed_token
 
 
@@ -82,6 +82,27 @@ def record_audit_event(
             actor_user_id=actor_user_id,
             event_type=event_type,
             summary=summary,
+            metadata_json=json.dumps(metadata or {}),
+        )
+    )
+
+
+def record_api_event(
+    db,
+    workspace_id: str,
+    api_key_id: str | None,
+    route: str,
+    method: str = "GET",
+    status_code: int = 200,
+    metadata: dict | None = None,
+) -> None:
+    db.add(
+        WorkspaceApiEvent(
+            workspace_id=workspace_id,
+            api_key_id=api_key_id,
+            route=route,
+            method=method,
+            status_code=status_code,
             metadata_json=json.dumps(metadata or {}),
         )
     )
@@ -156,14 +177,65 @@ def _workspace_audit_feed(db, workspace_id: str, limit: int = 20) -> list[dict]:
             "event_type": event.event_type,
             "summary": event.summary,
             "actor": user_display_name(user),
-            "created_at": event.created_at,
+            "created_at": event.created_at.isoformat() if event.created_at else None,
             "metadata": json.loads(event.metadata_json or "{}"),
         }
         for event, user in rows
     ]
 
 
+def _workspace_api_usage_feed(db, workspace_id: str, limit: int = 20) -> list[dict]:
+    rows = db.execute(
+        select(WorkspaceApiEvent, WorkspaceApiKey)
+        .outerjoin(WorkspaceApiKey, WorkspaceApiKey.id == WorkspaceApiEvent.api_key_id)
+        .where(WorkspaceApiEvent.workspace_id == workspace_id)
+        .order_by(WorkspaceApiEvent.created_at.desc())
+        .limit(limit)
+    ).all()
+    return [
+        {
+            "route": event.route,
+            "method": event.method,
+            "status_code": event.status_code,
+            "created_at": event.created_at.isoformat() if event.created_at else None,
+            "api_key_label": api_key.label if api_key else "unknown key",
+            "api_key_prefix": api_key.token_prefix if api_key else "",
+            "metadata": json.loads(event.metadata_json or "{}"),
+        }
+        for event, api_key in rows
+    ]
+
+
+def _workspace_api_usage_summary(db, workspace_id: str) -> dict:
+    total = db.execute(
+        select(func.count()).select_from(WorkspaceApiEvent).where(WorkspaceApiEvent.workspace_id == workspace_id)
+    ).scalar_one()
+    last_seen = db.execute(
+        select(func.max(WorkspaceApiEvent.created_at)).where(WorkspaceApiEvent.workspace_id == workspace_id)
+    ).scalar_one()
+    route_rows = db.execute(
+        select(WorkspaceApiEvent.route, func.count())
+        .where(WorkspaceApiEvent.workspace_id == workspace_id)
+        .group_by(WorkspaceApiEvent.route)
+        .order_by(func.count().desc())
+        .limit(8)
+    ).all()
+    key_rows = db.execute(
+        select(WorkspaceApiKey.id, func.count(WorkspaceApiEvent.id))
+        .outerjoin(WorkspaceApiEvent, WorkspaceApiEvent.api_key_id == WorkspaceApiKey.id)
+        .where(WorkspaceApiKey.workspace_id == workspace_id)
+        .group_by(WorkspaceApiKey.id)
+    ).all()
+    return {
+        "total_calls": total or 0,
+        "last_seen": last_seen.isoformat() if last_seen else None,
+        "top_routes": [{"route": route, "calls": calls} for route, calls in route_rows],
+        "key_calls": {key_id: calls for key_id, calls in key_rows},
+    }
+
+
 def _workspace_view_context(db, workspace: Workspace, search_results=None, search_query: str = "", revealed_api_key: str | None = None):
+    api_usage_summary = _workspace_api_usage_summary(db, workspace.id)
     return {
         "workspace": workspace,
         "stats": workspace_status(workspace.schema_name),
@@ -174,6 +246,8 @@ def _workspace_view_context(db, workspace: Workspace, search_results=None, searc
         "invites": _workspace_invites(db, workspace.id),
         "api_keys": _workspace_api_keys(db, workspace.id),
         "audit_events": _workspace_audit_feed(db, workspace.id),
+        "api_usage_events": _workspace_api_usage_feed(db, workspace.id),
+        "api_usage_summary": api_usage_summary,
         "revealed_api_key": revealed_api_key,
     }
 
@@ -640,7 +714,9 @@ async def api_workspace_status(
 ):
     db = SessionLocal()
     try:
-        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/status", "GET")
+        db.commit()
         return JSONResponse({"workspace": workspace.slug, "stats": workspace_status(workspace.schema_name)})
     finally:
         db.close()
@@ -655,7 +731,9 @@ async def api_workspace_recent(
 ):
     db = SessionLocal()
     try:
-        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/memories/recent", "GET", metadata={"limit": limit})
+        db.commit()
         return JSONResponse({"workspace": workspace.slug, "memories": workspace_recent_memories(workspace.schema_name, limit=limit)})
     finally:
         db.close()
@@ -675,7 +753,9 @@ async def api_workspace_search(
         raise HTTPException(status_code=400, detail="query is required")
     db = SessionLocal()
     try:
-        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/search", "POST", metadata={"top_k": top_k})
+        db.commit()
         return JSONResponse({"workspace": workspace.slug, "results": workspace_search(workspace.schema_name, query=query, top_k=top_k)})
     finally:
         db.close()
@@ -706,6 +786,14 @@ async def api_workspace_remember(
             summary=f"API key {api_key.label} stored a {memory_type} memory",
             metadata={"layer": layer, "memory_type": memory_type, "preview": content[:180]},
         )
+        record_api_event(
+            db,
+            workspace.id,
+            api_key.id,
+            "/remember",
+            "POST",
+            metadata={"layer": layer, "memory_type": memory_type},
+        )
         db.commit()
         return JSONResponse({"workspace": workspace.slug, "result": result})
     finally:
@@ -721,8 +809,33 @@ async def api_workspace_audit(
 ):
     db = SessionLocal()
     try:
-        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/audit", "GET", metadata={"limit": limit})
+        db.commit()
         return JSONResponse({"workspace": workspace.slug, "events": _workspace_audit_feed(db, workspace.id, limit=limit)})
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/usage")
+async def api_workspace_usage(
+    slug: str,
+    limit: int = 50,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/usage", "GET", metadata={"limit": limit})
+        db.commit()
+        return JSONResponse(
+            {
+                "workspace": workspace.slug,
+                "summary": _workspace_api_usage_summary(db, workspace.id),
+                "events": _workspace_api_usage_feed(db, workspace.id, limit=limit),
+            }
+        )
     finally:
         db.close()
 
@@ -737,6 +850,8 @@ async def api_workspace_bootstrap(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         base_headers = {"Authorization": "Bearer <workspace-api-key>"}
+        record_api_event(db, workspace.id, api_key.id, "/bootstrap", "GET")
+        db.commit()
         return JSONResponse(
             {
                 "workspace": workspace.slug,
@@ -753,6 +868,7 @@ async def api_workspace_bootstrap(
                     "remember_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/remember",
                     "recent_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/memories/recent",
                     "audit_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/audit",
+                    "usage_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/usage",
                     "headers": base_headers,
                 },
                 "mcp": {
@@ -796,6 +912,16 @@ async def api_workspace_mcp(
         try:
             result = workspace_tool_call(workspace.schema_name, tool_name, args)
         except ValueError as exc:
+            record_api_event(
+                db,
+                workspace.id,
+                api_key.id,
+                "/mcp",
+                "POST",
+                status_code=400,
+                metadata={"tool": tool_name, "error": str(exc)},
+            )
+            db.commit()
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         record_audit_event(
@@ -806,6 +932,7 @@ async def api_workspace_mcp(
             summary=f"API key {api_key.label} called {tool_name}",
             metadata={"tool": tool_name},
         )
+        record_api_event(db, workspace.id, api_key.id, "/mcp", "POST", metadata={"tool": tool_name})
         db.commit()
         return JSONResponse({"workspace": workspace.slug, "tool": tool_name, "result": result})
     finally:
@@ -820,7 +947,9 @@ async def api_workspace_mcp_tools(
 ):
     db = SessionLocal()
     try:
-        workspace, _api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/mcp/tools", "GET")
+        db.commit()
         return JSONResponse(
             {
                 "workspace": workspace.slug,

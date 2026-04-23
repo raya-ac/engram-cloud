@@ -227,6 +227,7 @@
     }
     .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .stat {
       font-size: 30px;
       font-weight: 600;
@@ -407,7 +408,7 @@
     }
     @media (max-width: 960px) {
       .shell { padding: 16px 18px 56px; }
-      .hero, .split, .grid.two, .grid.three, .detail-grid, .public-rail { grid-template-columns: 1fr; }
+      .hero, .split, .grid.two, .grid.three, .grid.four, .detail-grid, .public-rail { grid-template-columns: 1fr; }
       .hero {
         min-height: auto;
         gap: 20px;
