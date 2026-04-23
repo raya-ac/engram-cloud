@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}{{ workspace.name }} · Engram Cloud{% endblock %}
+{% block body %}
+<section class="workspace-head">
+  <div>
+    <div class="badge-row" style="margin-top:0;margin-bottom:10px">
+      <span class="badge">{{ workspace.slug }}</span>
+      <span class="badge">{{ workspace.schema_name }}</span>
+    </div>
+    <h2>{{ workspace.name }}</h2>
+    <p class="subtle">Hosted Engram workspace with its own graph, invite flow, API keys, and audit trail.</p>
+  </div>
+</section>
+
+<section class="grid three" style="margin-bottom:18px">
+  <div class="card">
+    <div class="stat">{{ stats.memories.total or 0 }}</div>
+    <div class="subtle">total memories</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ stats.entities or 0 }}</div>
+    <div class="subtle">entities</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ stats.relationships or 0 }}</div>
+    <div class="subtle">relationships</div>
+  </div>
+</section>
+
+<div class="split">
+  <div class="grid">
+    <div class="card">
+      <h3>Search memory</h3>
+      <form method="post" action="/app/workspaces/{{ workspace.slug }}/search">
+        <input type="text" name="query" value="{{ search_query or '' }}" placeholder="Search this workspace" required>
+        <button class="button primary" type="submit">Search</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Recent memories</h3>
+      {% if recent %}
+      <div class="list">
+        {% for memory in recent %}
+        <div class="item">
+          <div>{{ memory.content }}</div>
+          <div class="meta">
+            <span>{{ memory.layer }}</span>
+            <span>imp {{ "%.2f"|format(memory.importance) }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No memories yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>People</h3>
+      {% if members %}
+      <div class="list">
+        {% for member in members %}
+        <div class="item">
+          <div>{{ member.name or member.login }}</div>
+          <div class="meta">
+            <span>{{ member.login }}</span>
+            <span>{{ member.role }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No members yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Pending invites</h3>
+      <form method="post" action="/app/workspaces/{{ workspace.slug }}/invites">
+        <input type="email" name="email" placeholder="Invite email (optional)">
+        <select name="role">
+          <option value="member">member</option>
+          <option value="editor">editor</option>
+          <option value="admin">admin</option>
+        </select>
+        <button class="button primary" type="submit">Create invite</button>
+      </form>
+      {% if invites %}
+      <div class="list" style="margin-top:14px">
+        {% for invite in invites %}
+        <div class="item">
+          <div>{{ invite.email or "shareable link invite" }}</div>
+          <div class="meta">
+            <span>{{ invite.role }}</span>
+            {% if invite.accepted_at %}
+              <span>accepted</span>
+            {% elif invite.revoked_at %}
+              <span>revoked</span>
+            {% else %}
+              <span>open</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty" style="margin-top:14px">No invites yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Remember</h3>
+      <form method="post" action="/app/workspaces/{{ workspace.slug }}/remember">
+        <textarea name="content" placeholder="Store a new memory for this workspace" required></textarea>
+        <select name="layer">
+          <option value="episodic">episodic</option>
+          <option value="semantic">semantic</option>
+          <option value="procedural">procedural</option>
+          <option value="working">working</option>
+        </select>
+        <select name="memory_type">
+          <option value="narrative">narrative</option>
+          <option value="fact">fact</option>
+          <option value="procedure">procedure</option>
+        </select>
+        <button class="button primary" type="submit">Store memory</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Search results</h3>
+      {% if search_results %}
+      <div class="list">
+        {% for result in search_results %}
+        <div class="item">
+          <div>{{ result.content }}</div>
+          <div class="meta">
+            <span>{{ result.layer }}</span>
+            <span>{{ result.memory_type }}</span>
+            <span>score {{ "%.3f"|format(result.score) }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">Run a search to inspect this workspace’s memory graph.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>API keys</h3>
+      <p class="subtle" style="margin-bottom:12px">Use these for agents, apps, or ingestion pipelines.</p>
+      <form method="post" action="/app/workspaces/{{ workspace.slug }}/keys">
+        <input type="text" name="label" placeholder="Key label" required>
+        <button class="button primary" type="submit">Create API key</button>
+      </form>
+      {% if revealed_api_key %}
+      <div class="item" style="margin-top:12px">
+        <div>{{ revealed_api_key }}</div>
+        <div class="meta"><span>copy this now</span><span>it will not be shown again</span></div>
+      </div>
+      {% endif %}
+      {% if api_keys %}
+      <div class="list" style="margin-top:14px">
+        {% for key in api_keys %}
+        <div class="item">
+          <div>{{ key.label }}</div>
+          <div class="meta">
+            <span>{{ key.token_prefix }}</span>
+            {% if key.last_used_at %}<span>used</span>{% endif %}
+            {% if key.revoked_at %}<span>revoked</span>{% else %}<span>active</span>{% endif %}
+          </div>
+          {% if not key.revoked_at %}
+          <form method="post" action="/app/workspaces/{{ workspace.slug }}/keys/{{ key.id }}/revoke" style="margin-top:10px">
+            <button class="button" type="submit">Revoke</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty" style="margin-top:14px">No API keys yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Audit trail</h3>
+      {% if audit_events %}
+      <div class="list">
+        {% for event in audit_events %}
+        <div class="item">
+          <div>{{ event.summary }}</div>
+          <div class="meta">
+            <span>{{ event.event_type }}</span>
+            <span>{{ event.actor }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No audit events yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

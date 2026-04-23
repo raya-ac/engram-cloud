@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Engram Cloud{% endblock %}
+{% block body %}
+<section class="workspace-head">
+  <div>
+    <h2>Your workspaces</h2>
+    <p class="subtle">Each workspace gets its own Engram schema, access controls, and service surface.</p>
+  </div>
+</section>
+
+<div class="split" style="margin-bottom:18px">
+  <div class="card">
+    <h3>Create a workspace</h3>
+    <p style="margin-bottom:14px">This provisions the app record, a dedicated Engram schema, and the initial memory store in one step.</p>
+    <form method="post" action="/app/workspaces">
+      <input type="text" name="name" placeholder="Workspace name" required>
+      <button class="button primary" type="submit">Create workspace</button>
+    </form>
+  </div>
+  <div class="card">
+    <h3>What this service already handles</h3>
+    <p>Workspace isolation, audit history, invite flow, and API keys all live here. The local Engram package stays focused on memory behavior.</p>
+  </div>
+</div>
+
+{% if workspaces %}
+<section class="grid two">
+  {% for entry in workspaces %}
+  <a class="card" href="/app/workspaces/{{ entry.workspace.slug }}">
+    <h3>{{ entry.workspace.name }}</h3>
+    <p class="subtle">{{ entry.workspace.slug }}</p>
+    <div class="grid three" style="margin-top:16px">
+      <div>
+        <div class="stat">{{ entry.stats.memories.total or 0 }}</div>
+        <div class="subtle">memories</div>
+      </div>
+      <div>
+        <div class="stat">{{ entry.stats.entities or 0 }}</div>
+        <div class="subtle">entities</div>
+      </div>
+      <div>
+        <div class="stat">{{ entry.stats.relationships or 0 }}</div>
+        <div class="subtle">relationships</div>
+      </div>
+    </div>
+    <div class="badge-row" style="margin-top:14px">
+      <span class="badge">{{ entry.workspace.schema_name }}</span>
+      <span class="badge">{{ entry.member_count }} member{% if entry.member_count != 1 %}s{% endif %}</span>
+    </div>
+    <div class="list" style="margin-top:16px">
+      {% for memory in entry.recent %}
+      <div class="item">
+        <div>{{ memory.content }}</div>
+        <div class="meta">
+          <span>{{ memory.layer }}</span>
+          <span>imp {{ "%.2f"|format(memory.importance) }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </a>
+  {% endfor %}
+</section>
+{% else %}
+<div class="empty">No workspaces yet. Create one above and the service will provision the first hosted Engram space for you.</div>
+{% endif %}
+{% endblock %}

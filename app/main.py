@@ -1,0 +1,694 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime, timedelta
+from pathlib import Path
+
+from fastapi import FastAPI, Form, Header, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import false, func, select
+
+from app.auth import current_user_id, login_required, oauth
+from app.config import settings
+from app.db import Base, SessionLocal, engine
+from app.engram_service import (
+    init_workspace_store,
+    schema_name_for_slug,
+    slugify,
+    workspace_recent_memories,
+    workspace_remember,
+    workspace_search,
+    workspace_status,
+)
+from app.models import AuditEvent, User, Workspace, WorkspaceApiKey, WorkspaceInvite, WorkspaceMember
+from app.security import digest_token, mint_prefixed_token
+
+
+app = FastAPI(title="Engram Cloud", version="0.1.0")
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def render(request: Request, template: str, **context):
+    return templates.TemplateResponse(request, template, {
+        "request": request,
+        "settings": settings,
+        "current_user_id": current_user_id(request),
+        "flash": pop_flash(request),
+        **context,
+    })
+
+
+def set_flash(request: Request, kind: str, message: str) -> None:
+    request.session["_flash"] = {"kind": kind, "message": message}
+
+
+def pop_flash(request: Request) -> dict | None:
+    return request.session.pop("_flash", None)
+
+
+def user_display_name(user: User | None) -> str:
+    if not user:
+        return "system"
+    return user.name or user.login
+
+
+def record_audit_event(
+    db,
+    workspace_id: str,
+    event_type: str,
+    summary: str,
+    actor_user_id: str | None = None,
+    metadata: dict | None = None,
+) -> None:
+    db.add(
+        AuditEvent(
+            workspace_id=workspace_id,
+            actor_user_id=actor_user_id,
+            event_type=event_type,
+            summary=summary,
+            metadata_json=json.dumps(metadata or {}),
+        )
+    )
+
+
+def require_workspace_role(membership: WorkspaceMember, allowed_roles: set[str]) -> None:
+    if membership.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Insufficient workspace role")
+
+
+def _load_membership_for_user(db, user_id: str, slug: str) -> tuple[Workspace, WorkspaceMember]:
+    ws = db.execute(select(Workspace).where(Workspace.slug == slug)).scalar_one_or_none()
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    membership = db.execute(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == ws.id,
+            WorkspaceMember.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+    if not membership:
+        raise HTTPException(status_code=403, detail="No access to this workspace")
+    return ws, membership
+
+
+def _workspace_people(db, workspace_id: str) -> list[dict]:
+    rows = db.execute(
+        select(WorkspaceMember, User)
+        .join(User, User.id == WorkspaceMember.user_id)
+        .where(WorkspaceMember.workspace_id == workspace_id)
+        .order_by(WorkspaceMember.created_at.asc())
+    ).all()
+    return [
+        {
+            "membership_id": membership.id,
+            "role": membership.role,
+            "login": user.login,
+            "name": user.name,
+            "avatar_url": user.avatar_url,
+            "joined_at": membership.created_at,
+        }
+        for membership, user in rows
+    ]
+
+
+def _workspace_invites(db, workspace_id: str) -> list[WorkspaceInvite]:
+    return db.execute(
+        select(WorkspaceInvite)
+        .where(WorkspaceInvite.workspace_id == workspace_id)
+        .order_by(WorkspaceInvite.created_at.desc())
+    ).scalars().all()
+
+
+def _workspace_api_keys(db, workspace_id: str) -> list[WorkspaceApiKey]:
+    return db.execute(
+        select(WorkspaceApiKey)
+        .where(WorkspaceApiKey.workspace_id == workspace_id)
+        .order_by(WorkspaceApiKey.created_at.desc())
+    ).scalars().all()
+
+
+def _workspace_audit_feed(db, workspace_id: str, limit: int = 20) -> list[dict]:
+    rows = db.execute(
+        select(AuditEvent, User)
+        .outerjoin(User, User.id == AuditEvent.actor_user_id)
+        .where(AuditEvent.workspace_id == workspace_id)
+        .order_by(AuditEvent.created_at.desc())
+        .limit(limit)
+    ).all()
+    return [
+        {
+            "event_type": event.event_type,
+            "summary": event.summary,
+            "actor": user_display_name(user),
+            "created_at": event.created_at,
+            "metadata": json.loads(event.metadata_json or "{}"),
+        }
+        for event, user in rows
+    ]
+
+
+def _workspace_view_context(db, workspace: Workspace, search_results=None, search_query: str = "", revealed_api_key: str | None = None):
+    return {
+        "workspace": workspace,
+        "stats": workspace_status(workspace.schema_name),
+        "recent": workspace_recent_memories(workspace.schema_name, limit=12),
+        "search_results": search_results,
+        "search_query": search_query,
+        "members": _workspace_people(db, workspace.id),
+        "invites": _workspace_invites(db, workspace.id),
+        "api_keys": _workspace_api_keys(db, workspace.id),
+        "audit_events": _workspace_audit_feed(db, workspace.id),
+        "revealed_api_key": revealed_api_key,
+    }
+
+
+def api_key_from_request(authorization: str | None, x_api_key: str | None) -> str | None:
+    if x_api_key:
+        return x_api_key.strip()
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return None
+
+
+def resolve_api_workspace(db, slug: str, token: str) -> WorkspaceApiKey:
+    token_hash = digest_token(token)
+    api_key = db.execute(
+        select(WorkspaceApiKey)
+        .join(Workspace, Workspace.id == WorkspaceApiKey.workspace_id)
+        .where(
+            Workspace.slug == slug,
+            WorkspaceApiKey.token_hash == token_hash,
+            WorkspaceApiKey.revoked_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    api_key.last_used_at = datetime.utcnow()
+    db.commit()
+    return api_key
+
+
+@app.on_event("startup")
+def startup() -> None:
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    Base.metadata.create_all(engine)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    if current_user_id(request):
+        return RedirectResponse("/app", status_code=302)
+    return render(request, "landing.html")
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return render(request, "login.html")
+
+
+@app.get("/login/github")
+async def login_github(request: Request):
+    redirect_uri = f"{settings.base_url}/auth/github/callback"
+    return await oauth.github.authorize_redirect(request, redirect_uri)
+
+
+@app.get("/auth/github/callback")
+async def github_callback(request: Request):
+    token = await oauth.github.authorize_access_token(request)
+    profile = await oauth.github.get("user", token=token)
+    user_data = profile.json()
+
+    db = SessionLocal()
+    try:
+        user = db.execute(select(User).where(User.github_id == str(user_data["id"]))).scalar_one_or_none()
+        if not user:
+            user = User(
+                github_id=str(user_data["id"]),
+                login=user_data["login"],
+                name=user_data.get("name"),
+                avatar_url=user_data.get("avatar_url"),
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            user.login = user_data["login"]
+            user.name = user_data.get("name")
+            user.avatar_url = user_data.get("avatar_url")
+            db.commit()
+        request.session["user_id"] = user.id
+    finally:
+        db.close()
+
+    return RedirectResponse("/app", status_code=302)
+
+
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/", status_code=302)
+
+
+@app.get("/app", response_class=HTMLResponse)
+@login_required
+async def dashboard(request: Request):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        memberships = db.execute(
+            select(WorkspaceMember).where(WorkspaceMember.user_id == user_id)
+        ).scalars().all()
+        workspace_ids = [m.workspace_id for m in memberships]
+        workspaces = db.execute(
+            select(Workspace).where(Workspace.id.in_(workspace_ids)) if workspace_ids else select(Workspace).where(false())
+        ).scalars().all()
+        enriched = []
+        for ws in workspaces:
+            enriched.append({
+                "workspace": ws,
+                "stats": workspace_status(ws.schema_name),
+                "recent": workspace_recent_memories(ws.schema_name, limit=4),
+                "member_count": db.execute(
+                    select(func.count()).select_from(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id)
+                ).scalar_one(),
+            })
+        return render(request, "dashboard.html", workspaces=enriched)
+    finally:
+        db.close()
+
+
+@app.post("/app/workspaces")
+@login_required
+async def create_workspace(request: Request, name: str = Form(...)):
+    user_id = current_user_id(request)
+    slug = slugify(name)
+    schema_name = schema_name_for_slug(slug)
+    db = SessionLocal()
+    try:
+        exists = db.execute(select(Workspace).where(Workspace.slug == slug)).scalar_one_or_none()
+        if exists:
+            raise HTTPException(status_code=400, detail="Workspace slug already exists")
+        ws = Workspace(name=name.strip(), slug=slug, schema_name=schema_name, owner_id=user_id)
+        db.add(ws)
+        db.commit()
+        db.refresh(ws)
+        db.add(WorkspaceMember(workspace_id=ws.id, user_id=user_id, role="owner"))
+        record_audit_event(
+            db,
+            workspace_id=ws.id,
+            actor_user_id=user_id,
+            event_type="workspace.created",
+            summary=f"Created workspace {ws.name}",
+            metadata={"slug": ws.slug, "schema_name": ws.schema_name},
+        )
+        db.commit()
+        init_workspace_store(schema_name)
+        set_flash(request, "success", f"{ws.name} is ready.")
+    finally:
+        db.close()
+    return RedirectResponse(f"/app/workspaces/{slug}", status_code=302)
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "service": "engram-cloud"}
+
+
+@app.get("/app/workspaces/{slug}", response_class=HTMLResponse)
+@login_required
+async def workspace_page(request: Request, slug: str):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        ws, _membership = _load_membership_for_user(db, user_id, slug)
+        return render(request, "workspace.html", **_workspace_view_context(db, ws))
+    finally:
+        db.close()
+
+
+@app.post("/app/workspaces/{slug}/search", response_class=HTMLResponse)
+@login_required
+async def workspace_search_view(request: Request, slug: str, query: str = Form(...)):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        ws, _membership = _load_membership_for_user(db, user_id, slug)
+        return render(
+            request,
+            "workspace.html",
+            **_workspace_view_context(
+                db,
+                ws,
+                search_results=workspace_search(ws.schema_name, query=query, top_k=10),
+                search_query=query,
+            ),
+        )
+    finally:
+        db.close()
+
+
+@app.post("/app/workspaces/{slug}/remember")
+@login_required
+async def workspace_remember_view(
+    request: Request,
+    slug: str,
+    content: str = Form(...),
+    layer: str = Form("episodic"),
+    memory_type: str = Form("narrative"),
+):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        ws, membership = _load_membership_for_user(db, user_id, slug)
+        require_workspace_role(membership, {"owner", "admin", "editor"})
+        workspace_remember(ws.schema_name, content=content, layer=layer, memory_type=memory_type)
+        record_audit_event(
+            db,
+            workspace_id=ws.id,
+            actor_user_id=user_id,
+            event_type="memory.remembered",
+            summary=f"Stored a {memory_type} memory in {layer}",
+            metadata={"layer": layer, "memory_type": memory_type, "preview": content[:180]},
+        )
+        db.commit()
+        set_flash(request, "success", "Memory stored.")
+    finally:
+        db.close()
+    return RedirectResponse(f"/app/workspaces/{slug}", status_code=302)
+
+
+@app.post("/app/workspaces/{slug}/invites")
+@login_required
+async def create_workspace_invite(
+    request: Request,
+    slug: str,
+    email: str = Form(""),
+    role: str = Form("member"),
+):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        ws, membership = _load_membership_for_user(db, user_id, slug)
+        require_workspace_role(membership, {"owner", "admin"})
+        invite_token, _prefix, token_hash = mint_prefixed_token("engraminvite")
+        invite = WorkspaceInvite(
+            workspace_id=ws.id,
+            invited_by_user_id=user_id,
+            email=email.strip() or None,
+            role=role,
+            token_hash=token_hash,
+            expires_at=datetime.utcnow() + timedelta(days=14),
+        )
+        db.add(invite)
+        record_audit_event(
+            db,
+            workspace_id=ws.id,
+            actor_user_id=user_id,
+            event_type="workspace.invite.created",
+            summary=f"Created a {role} invite",
+            metadata={"email": invite.email, "expires_at": invite.expires_at.isoformat()},
+        )
+        db.commit()
+        set_flash(
+            request,
+            "success",
+            f"Invite created. Share {settings.base_url}/app/invites/{invite_token}",
+        )
+    finally:
+        db.close()
+    return RedirectResponse(f"/app/workspaces/{slug}", status_code=302)
+
+
+@app.post("/app/workspaces/{slug}/keys")
+@login_required
+async def create_workspace_key(request: Request, slug: str, label: str = Form(...)):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        ws, membership = _load_membership_for_user(db, user_id, slug)
+        require_workspace_role(membership, {"owner", "admin", "editor"})
+        api_token, token_prefix, token_hash = mint_prefixed_token("engram")
+        api_key = WorkspaceApiKey(
+            workspace_id=ws.id,
+            created_by_user_id=user_id,
+            label=label.strip(),
+            token_prefix=token_prefix,
+            token_hash=token_hash,
+        )
+        db.add(api_key)
+        record_audit_event(
+            db,
+            workspace_id=ws.id,
+            actor_user_id=user_id,
+            event_type="api_key.created",
+            summary=f"Created API key {api_key.label}",
+            metadata={"label": api_key.label, "token_prefix": token_prefix},
+        )
+        db.commit()
+        set_flash(request, "success", f"API key created. Copy it now: {api_token}")
+    finally:
+        db.close()
+    return RedirectResponse(f"/app/workspaces/{slug}", status_code=302)
+
+
+@app.post("/app/workspaces/{slug}/keys/{key_id}/revoke")
+@login_required
+async def revoke_workspace_key(request: Request, slug: str, key_id: str):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        ws, membership = _load_membership_for_user(db, user_id, slug)
+        require_workspace_role(membership, {"owner", "admin"})
+        api_key = db.execute(
+            select(WorkspaceApiKey).where(
+                WorkspaceApiKey.id == key_id,
+                WorkspaceApiKey.workspace_id == ws.id,
+            )
+        ).scalar_one_or_none()
+        if not api_key:
+            raise HTTPException(status_code=404, detail="API key not found")
+        api_key.revoked_at = datetime.utcnow()
+        record_audit_event(
+            db,
+            workspace_id=ws.id,
+            actor_user_id=user_id,
+            event_type="api_key.revoked",
+            summary=f"Revoked API key {api_key.label}",
+            metadata={"label": api_key.label, "token_prefix": api_key.token_prefix},
+        )
+        db.commit()
+        set_flash(request, "success", "API key revoked.")
+    finally:
+        db.close()
+    return RedirectResponse(f"/app/workspaces/{slug}", status_code=302)
+
+
+@app.get("/app/invites/{token}", response_class=HTMLResponse)
+@login_required
+async def invite_page(request: Request, token: str):
+    user_id = current_user_id(request)
+    token_hash = digest_token(token)
+    db = SessionLocal()
+    try:
+        invite = db.execute(
+            select(WorkspaceInvite, Workspace, User)
+            .join(Workspace, Workspace.id == WorkspaceInvite.workspace_id)
+            .join(User, User.id == WorkspaceInvite.invited_by_user_id)
+            .where(
+                WorkspaceInvite.token_hash == token_hash,
+                WorkspaceInvite.revoked_at.is_(None),
+            )
+        ).first()
+        if not invite:
+            raise HTTPException(status_code=404, detail="Invite not found")
+        invite_row, workspace, inviter = invite
+        if invite_row.expires_at and invite_row.expires_at < datetime.utcnow():
+            raise HTTPException(status_code=410, detail="Invite expired")
+        existing = db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace.id,
+                WorkspaceMember.user_id == user_id,
+            )
+        ).scalar_one_or_none()
+        return render(
+            request,
+            "invite.html",
+            invite=invite_row,
+            workspace=workspace,
+            inviter=inviter,
+            already_member=bool(existing),
+        )
+    finally:
+        db.close()
+
+
+@app.post("/app/invites/{token}/accept")
+@login_required
+async def accept_invite(request: Request, token: str):
+    user_id = current_user_id(request)
+    token_hash = digest_token(token)
+    db = SessionLocal()
+    try:
+        invite = db.execute(
+            select(WorkspaceInvite, Workspace)
+            .join(Workspace, Workspace.id == WorkspaceInvite.workspace_id)
+            .where(
+                WorkspaceInvite.token_hash == token_hash,
+                WorkspaceInvite.revoked_at.is_(None),
+            )
+        ).first()
+        if not invite:
+            raise HTTPException(status_code=404, detail="Invite not found")
+        invite_row, workspace = invite
+        if invite_row.expires_at and invite_row.expires_at < datetime.utcnow():
+            raise HTTPException(status_code=410, detail="Invite expired")
+        existing = db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace.id,
+                WorkspaceMember.user_id == user_id,
+            )
+        ).scalar_one_or_none()
+        if not existing:
+            db.add(WorkspaceMember(workspace_id=workspace.id, user_id=user_id, role=invite_row.role))
+        invite_row.accepted_at = datetime.utcnow()
+        record_audit_event(
+            db,
+            workspace_id=workspace.id,
+            actor_user_id=user_id,
+            event_type="workspace.invite.accepted",
+            summary=f"Accepted invite as {invite_row.role}",
+            metadata={"role": invite_row.role},
+        )
+        db.commit()
+        set_flash(request, "success", f"You joined {workspace.name}.")
+        return RedirectResponse(f"/app/workspaces/{workspace.slug}", status_code=302)
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/status")
+async def api_workspace_status(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        token = api_key_from_request(authorization, x_api_key)
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing API key")
+        api_key = resolve_api_workspace(db, slug, token)
+        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        return JSONResponse({"workspace": workspace.slug, "stats": workspace_status(workspace.schema_name)})
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/memories/recent")
+async def api_workspace_recent(
+    slug: str,
+    limit: int = 10,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        token = api_key_from_request(authorization, x_api_key)
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing API key")
+        api_key = resolve_api_workspace(db, slug, token)
+        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        return JSONResponse({"workspace": workspace.slug, "memories": workspace_recent_memories(workspace.schema_name, limit=limit)})
+    finally:
+        db.close()
+
+
+@app.post("/api/workspaces/{slug}/search")
+async def api_workspace_search(
+    slug: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    payload = await request.json()
+    query = (payload.get("query") or "").strip()
+    top_k = int(payload.get("top_k") or 8)
+    if not query:
+        raise HTTPException(status_code=400, detail="query is required")
+    db = SessionLocal()
+    try:
+        token = api_key_from_request(authorization, x_api_key)
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing API key")
+        api_key = resolve_api_workspace(db, slug, token)
+        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        return JSONResponse({"workspace": workspace.slug, "results": workspace_search(workspace.schema_name, query=query, top_k=top_k)})
+    finally:
+        db.close()
+
+
+@app.post("/api/workspaces/{slug}/remember")
+async def api_workspace_remember(
+    slug: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    payload = await request.json()
+    content = (payload.get("content") or "").strip()
+    layer = payload.get("layer") or "episodic"
+    memory_type = payload.get("memory_type") or "narrative"
+    if not content:
+        raise HTTPException(status_code=400, detail="content is required")
+    db = SessionLocal()
+    try:
+        token = api_key_from_request(authorization, x_api_key)
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing API key")
+        api_key = resolve_api_workspace(db, slug, token)
+        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        result = workspace_remember(workspace.schema_name, content=content, layer=layer, memory_type=memory_type)
+        record_audit_event(
+            db,
+            workspace_id=workspace.id,
+            actor_user_id=None,
+            event_type="memory.remembered.api",
+            summary=f"API key {api_key.label} stored a {memory_type} memory",
+            metadata={"layer": layer, "memory_type": memory_type, "preview": content[:180]},
+        )
+        db.commit()
+        return JSONResponse({"workspace": workspace.slug, "result": result})
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/audit")
+async def api_workspace_audit(
+    slug: str,
+    limit: int = 25,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        token = api_key_from_request(authorization, x_api_key)
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing API key")
+        api_key = resolve_api_workspace(db, slug, token)
+        workspace = db.execute(select(Workspace).where(Workspace.id == api_key.workspace_id)).scalar_one()
+        return JSONResponse({"workspace": workspace.slug, "events": _workspace_audit_feed(db, workspace.id, limit=limit)})
+    finally:
+        db.close()

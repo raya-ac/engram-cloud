@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Engram Cloud{% endblock %}
+{% block body %}
+<section class="hero">
+  <div>
+    <div class="badge-row" style="margin-top:0;margin-bottom:12px">
+      <span class="badge">GitHub login</span>
+      <span class="badge">Hosted dashboard</span>
+      <span class="badge">Workspace isolation</span>
+    </div>
+    <h2>Run Engram like a real service.</h2>
+    <p>Engram Cloud gives the memory engine a proper home: GitHub login, shared workspaces, API keys, invites, and a dashboard that feels more like a product than a local sidecar.</p>
+    <p class="warning">Recommended hosting: VPS. Engram works best as a warm Python service with direct Postgres access. Vercel is fine for a thin shell, but it is the wrong place to run the memory runtime itself.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/login/github" class="button primary">Launch with GitHub</a>
+      <a href="https://github.com/raya-ac/engram" class="button">Core Engram repo</a>
+    </div>
+  </div>
+  <div class="metrics">
+    <div class="metric">
+      <h3>Workspace memory that stays separated</h3>
+      <p>Each workspace gets its own Engram schema and backend config, so one team’s memory graph does not leak into another team’s data.</p>
+    </div>
+    <div class="metric">
+      <h3>Built for a long-lived deploy</h3>
+      <p>One Python service and one Postgres instance is enough to run the core cleanly. No awkward split between serverless edges and a stateful memory process.</p>
+    </div>
+    <div class="metric">
+      <h3>Ready for teams and agents</h3>
+      <p>It already has the right hooks for invites, API keys, audit history, and future session capture. The storage model does not need to change later.</p>
+    </div>
+  </div>
+</section>
+
+<section class="grid three">
+  <div class="card">
+    <h3>Search, store, inspect</h3>
+    <p>Users can search the workspace graph, write new memories, and inspect recent activity without touching local config files or CLI state.</p>
+  </div>
+  <div class="card">
+    <h3>GitHub identity</h3>
+    <p>GitHub OAuth keeps the first-run path short. Sign in, create a workspace, and start using it.</p>
+  </div>
+  <div class="card">
+    <h3>Same Engram core</h3>
+    <p>This uses the real Engram package underneath, so improvements in retrieval and memory behavior can move straight into the hosted layer.</p>
+  </div>
+</section>
+{% endblock %}

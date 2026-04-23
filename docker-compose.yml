@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: engram
+      POSTGRES_PASSWORD: engram
+      POSTGRES_DB: engram_cloud
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8090:8090"
+    depends_on:
+      - postgres
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  postgres_data:

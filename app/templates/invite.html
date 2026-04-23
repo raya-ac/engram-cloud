@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Join {{ workspace.name }} · Engram Cloud{% endblock %}
+{% block body %}
+<section class="hero" style="grid-template-columns:1fr">
+  <div>
+    <div class="badge-row" style="margin-top:0;margin-bottom:12px">
+      <span class="badge">{{ workspace.slug }}</span>
+      <span class="badge">{{ invite.role }}</span>
+    </div>
+    <h2 style="max-width:14ch">Join {{ workspace.name }}.</h2>
+    <p>{{ inviter.name or inviter.login }} invited you to this workspace. Accepting gives you {{ invite.role }} access.</p>
+    {% if already_member %}
+    <div class="empty" style="text-align:left">You already have access to this workspace.</div>
+    <div class="nav" style="margin-top:18px">
+      <a href="/app/workspaces/{{ workspace.slug }}" class="button primary">Open workspace</a>
+    </div>
+    {% else %}
+    <form method="post" action="/app/invites/{{ request.path_params['token'] }}/accept" style="max-width:420px">
+      <button class="button primary" type="submit">Accept invite</button>
+      <a href="/app" class="button">Back to dashboard</a>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

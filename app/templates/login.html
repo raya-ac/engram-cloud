@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Log in · Engram Cloud{% endblock %}
+{% block body %}
+<section class="hero" style="grid-template-columns:1fr">
+  <div>
+    <div class="badge-row" style="margin-top:0;margin-bottom:12px">
+      <span class="badge">GitHub OAuth</span>
+      <span class="badge">Hosted workspaces</span>
+    </div>
+    <h2 style="max-width:12ch">Sign in and start a workspace.</h2>
+    <p>GitHub is the simplest way in. Your profile is already there, and it is enough to get a hosted Engram workspace running without a separate account system.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/login/github" class="button primary">Continue with GitHub</a>
+      <a href="/" class="button">Back</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
