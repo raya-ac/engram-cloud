@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Header, HTTPException, Request
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -26,7 +26,16 @@ from app.engram_service import (
     workspace_status,
     workspace_tool_call,
 )
-from app.models import AuditEvent, User, Workspace, WorkspaceApiEvent, WorkspaceApiKey, WorkspaceInvite, WorkspaceMember
+from app.models import (
+    AuditEvent,
+    User,
+    Workspace,
+    WorkspaceApiEvent,
+    WorkspaceApiKey,
+    WorkspaceIngestRun,
+    WorkspaceInvite,
+    WorkspaceMember,
+)
 from app.security import digest_token, mint_prefixed_token
 
 
@@ -61,6 +70,11 @@ SERVICE_FEATURES = [
     {"name": "Dashboard write path", "summary": "Store memories manually when an operator needs to pin state."},
     {"name": "Key revocation", "summary": "Revoke workspace API keys without touching the memory store."},
     {"name": "Public service docs", "summary": "Keep setup, endpoints, bridge tools, and skills documented in-app."},
+    {"name": "Paste ingestion", "summary": "Import pasted notes, transcripts, reports, or logs directly from a workspace."},
+    {"name": "File ingestion", "summary": "Upload a text, markdown, JSON, or CSV-like file and split it into memories."},
+    {"name": "Batch ingest API", "summary": "Push many memories in one authenticated request."},
+    {"name": "Import run history", "summary": "Track source, type, item count, and actor for each ingestion run."},
+    {"name": "Recent export", "summary": "Download recent workspace memories as JSON for inspection or backup."},
 ]
 
 
@@ -78,7 +92,7 @@ INTEGRATION_RECIPES = [
     {
         "name": "Ingestion pipeline",
         "steps": ["Create a service key", "POST memories", "Watch usage events"],
-        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"content\":\"Deployment completed\",\"layer\":\"episodic\",\"memory_type\":\"fact\"}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/remember\"",
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"source_name\":\"handoff.md\",\"items\":[\"Deployment completed\",\"Follow up on billing UI\"],\"layer\":\"episodic\",\"memory_type\":\"fact\"}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/ingest\"",
     },
     {
         "name": "Usage monitor",
@@ -92,7 +106,9 @@ CHANGELOG_ENTRIES = [
     {
         "version": "Cloud host",
         "date": "2026-04-24",
-        "changes": [
+            "changes": [
+            "Added workspace paste, file, and batch API ingestion.",
+            "Added ingestion run history and recent memory export.",
             "Added structured API usage tracking per workspace key.",
             "Added hosted usage endpoint and dashboard activity stream.",
             "Redesigned the public site around a cleaner infrastructure-style shell.",
@@ -181,6 +197,83 @@ def record_api_event(
             metadata_json=json.dumps(metadata or {}),
         )
     )
+
+
+def normalize_layer(value: str | None) -> str:
+    return value if value in {"working", "episodic", "semantic", "procedural"} else "episodic"
+
+
+def normalize_memory_type(value: str | None) -> str:
+    return value if value in {"narrative", "fact", "procedure"} else "narrative"
+
+
+def split_ingest_text(raw_text: str, mode: str = "auto", max_items: int = 80) -> list[str]:
+    text = raw_text.replace("\r\n", "\n").strip()
+    if not text:
+        return []
+    if mode == "single":
+        return [text]
+    if mode == "lines":
+        chunks = [line.strip("- \t") for line in text.splitlines() if line.strip("- \t")]
+    elif mode == "paragraphs":
+        chunks = [part.strip() for part in text.split("\n\n") if part.strip()]
+    elif mode == "json":
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid JSON ingest payload") from exc
+        if isinstance(parsed, list):
+            chunks = [json.dumps(item, ensure_ascii=False) if not isinstance(item, str) else item for item in parsed]
+        elif isinstance(parsed, dict):
+            chunks = [
+                json.dumps(item, ensure_ascii=False) if not isinstance(item, str) else item
+                for item in parsed.get("items", parsed.get("memories", [parsed]))
+            ]
+        else:
+            chunks = [str(parsed)]
+    else:
+        if "\n\n" in text:
+            chunks = [part.strip() for part in text.split("\n\n") if part.strip()]
+        else:
+            chunks = [line.strip("- \t") for line in text.splitlines() if line.strip("- \t")]
+        if len(chunks) <= 1 and len(text) > 1800:
+            chunks = [text[index : index + 1400].strip() for index in range(0, len(text), 1400)]
+    return [chunk for chunk in chunks if chunk][:max_items]
+
+
+def ingest_workspace_items(
+    db,
+    workspace: Workspace,
+    items: list[str],
+    source_name: str,
+    source_type: str,
+    layer: str,
+    memory_type: str,
+    actor_user_id: str | None = None,
+    api_key_id: str | None = None,
+    metadata: dict | None = None,
+) -> WorkspaceIngestRun:
+    clean_items = [item.strip() for item in items if item and item.strip()]
+    if not clean_items:
+        raise HTTPException(status_code=400, detail="No ingestable content found")
+    if len(clean_items) > 100:
+        raise HTTPException(status_code=400, detail="Ingestion is limited to 100 items per request")
+    for item in clean_items:
+        workspace_remember(workspace.schema_name, content=item, layer=layer, memory_type=memory_type)
+    run = WorkspaceIngestRun(
+        workspace_id=workspace.id,
+        actor_user_id=actor_user_id,
+        api_key_id=api_key_id,
+        source_name=source_name[:180] or "manual import",
+        source_type=source_type[:80] or "text",
+        layer=layer,
+        memory_type=memory_type,
+        item_count=len(clean_items),
+        character_count=sum(len(item) for item in clean_items),
+        metadata_json=json.dumps(metadata or {}),
+    )
+    db.add(run)
+    return run
 
 
 def require_workspace_role(membership: WorkspaceMember, allowed_roles: set[str]) -> None:
@@ -309,6 +402,61 @@ def _workspace_api_usage_summary(db, workspace_id: str) -> dict:
     }
 
 
+def _workspace_ingest_runs(db, workspace_id: str, limit: int = 12) -> list[dict]:
+    rows = db.execute(
+        select(WorkspaceIngestRun, User, WorkspaceApiKey)
+        .outerjoin(User, User.id == WorkspaceIngestRun.actor_user_id)
+        .outerjoin(WorkspaceApiKey, WorkspaceApiKey.id == WorkspaceIngestRun.api_key_id)
+        .where(WorkspaceIngestRun.workspace_id == workspace_id)
+        .order_by(WorkspaceIngestRun.created_at.desc())
+        .limit(limit)
+    ).all()
+    return [
+        {
+            "source_name": run.source_name,
+            "source_type": run.source_type,
+            "layer": run.layer,
+            "memory_type": run.memory_type,
+            "item_count": run.item_count,
+            "character_count": run.character_count,
+            "status": run.status,
+            "created_at": run.created_at.isoformat() if run.created_at else None,
+            "actor": user_display_name(user) if user else (api_key.label if api_key else "api"),
+            "metadata": json.loads(run.metadata_json or "{}"),
+        }
+        for run, user, api_key in rows
+    ]
+
+
+def _workspace_operator_summary(db, workspace_id: str) -> dict:
+    active_keys = db.execute(
+        select(func.count())
+        .select_from(WorkspaceApiKey)
+        .where(WorkspaceApiKey.workspace_id == workspace_id, WorkspaceApiKey.revoked_at.is_(None))
+    ).scalar_one()
+    open_invites = db.execute(
+        select(func.count())
+        .select_from(WorkspaceInvite)
+        .where(
+            WorkspaceInvite.workspace_id == workspace_id,
+            WorkspaceInvite.accepted_at.is_(None),
+            WorkspaceInvite.revoked_at.is_(None),
+        )
+    ).scalar_one()
+    ingest_total = db.execute(
+        select(func.count()).select_from(WorkspaceIngestRun).where(WorkspaceIngestRun.workspace_id == workspace_id)
+    ).scalar_one()
+    ingested_items = db.execute(
+        select(func.coalesce(func.sum(WorkspaceIngestRun.item_count), 0)).where(WorkspaceIngestRun.workspace_id == workspace_id)
+    ).scalar_one()
+    return {
+        "active_keys": active_keys or 0,
+        "open_invites": open_invites or 0,
+        "ingest_runs": ingest_total or 0,
+        "ingested_items": ingested_items or 0,
+    }
+
+
 def _workspace_view_context(db, workspace: Workspace, search_results=None, search_query: str = "", revealed_api_key: str | None = None):
     api_usage_summary = _workspace_api_usage_summary(db, workspace.id)
     return {
@@ -323,6 +471,8 @@ def _workspace_view_context(db, workspace: Workspace, search_results=None, searc
         "audit_events": _workspace_audit_feed(db, workspace.id),
         "api_usage_events": _workspace_api_usage_feed(db, workspace.id),
         "api_usage_summary": api_usage_summary,
+        "ingest_runs": _workspace_ingest_runs(db, workspace.id),
+        "operator_summary": _workspace_operator_summary(db, workspace.id),
         "revealed_api_key": revealed_api_key,
     }
 
@@ -649,6 +799,57 @@ async def workspace_remember_view(
     return RedirectResponse(f"/app/workspaces/{slug}", status_code=302)
 
 
+@app.post("/app/workspaces/{slug}/ingest")
+@login_required
+async def workspace_ingest_view(
+    request: Request,
+    slug: str,
+    source_name: str = Form("manual import"),
+    source_type: str = Form("text"),
+    ingest_text: str = Form(""),
+    split_mode: str = Form("auto"),
+    layer: str = Form("episodic"),
+    memory_type: str = Form("narrative"),
+    upload: UploadFile | None = File(default=None),
+):
+    user_id = current_user_id(request)
+    db = SessionLocal()
+    try:
+        ws, membership = _load_membership_for_user(db, user_id, slug)
+        require_workspace_role(membership, {"owner", "admin", "editor"})
+        file_text = ""
+        file_name = ""
+        if upload and upload.filename:
+            file_name = upload.filename
+            file_text = (await upload.read()).decode("utf-8", errors="replace")
+        raw_text = "\n\n".join(part for part in [ingest_text.strip(), file_text.strip()] if part)
+        chunks = split_ingest_text(raw_text, mode=split_mode)
+        run = ingest_workspace_items(
+            db,
+            ws,
+            chunks,
+            source_name=file_name or source_name,
+            source_type=source_type,
+            layer=normalize_layer(layer),
+            memory_type=normalize_memory_type(memory_type),
+            actor_user_id=user_id,
+            metadata={"split_mode": split_mode, "uploaded_file": file_name},
+        )
+        record_audit_event(
+            db,
+            workspace_id=ws.id,
+            actor_user_id=user_id,
+            event_type="workspace.ingested",
+            summary=f"Ingested {run.item_count} item(s) from {run.source_name}",
+            metadata={"source_type": run.source_type, "layer": run.layer, "memory_type": run.memory_type},
+        )
+        db.commit()
+        set_flash(request, "success", f"Ingested {run.item_count} item(s) into memory.")
+    finally:
+        db.close()
+    return RedirectResponse(f"/app/workspaces/{slug}", status_code=302)
+
+
 @app.post("/app/workspaces/{slug}/invites")
 @login_required
 async def create_workspace_invite(
@@ -932,6 +1133,72 @@ async def api_workspace_remember(
         db.close()
 
 
+@app.post("/api/workspaces/{slug}/ingest")
+async def api_workspace_ingest(
+    slug: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    payload = await request.json()
+    source_name = (payload.get("source_name") or "api import").strip()
+    source_type = (payload.get("source_type") or "json").strip()
+    layer = normalize_layer(payload.get("layer"))
+    memory_type = normalize_memory_type(payload.get("memory_type"))
+    split_mode = payload.get("split_mode") or "auto"
+    items = payload.get("items")
+    if isinstance(items, list):
+        ingest_items = [json.dumps(item, ensure_ascii=False) if not isinstance(item, str) else item for item in items]
+    else:
+        ingest_items = split_ingest_text(str(payload.get("content") or ""), mode=split_mode)
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        run = ingest_workspace_items(
+            db,
+            workspace,
+            ingest_items,
+            source_name=source_name,
+            source_type=source_type,
+            layer=layer,
+            memory_type=memory_type,
+            api_key_id=api_key.id,
+            metadata={"split_mode": split_mode},
+        )
+        record_audit_event(
+            db,
+            workspace_id=workspace.id,
+            actor_user_id=None,
+            event_type="workspace.ingested.api",
+            summary=f"API key {api_key.label} ingested {run.item_count} item(s)",
+            metadata={"source_name": run.source_name, "source_type": run.source_type},
+        )
+        record_api_event(
+            db,
+            workspace.id,
+            api_key.id,
+            "/ingest",
+            "POST",
+            metadata={"item_count": run.item_count, "source_type": run.source_type},
+        )
+        db.commit()
+        return JSONResponse(
+            {
+                "workspace": workspace.slug,
+                "ingest": {
+                    "source_name": run.source_name,
+                    "source_type": run.source_type,
+                    "item_count": run.item_count,
+                    "character_count": run.character_count,
+                    "layer": run.layer,
+                    "memory_type": run.memory_type,
+                },
+            }
+        )
+    finally:
+        db.close()
+
+
 @app.get("/api/workspaces/{slug}/audit")
 async def api_workspace_audit(
     slug: str,
@@ -945,6 +1212,47 @@ async def api_workspace_audit(
         record_api_event(db, workspace.id, api_key.id, "/audit", "GET", metadata={"limit": limit})
         db.commit()
         return JSONResponse({"workspace": workspace.slug, "events": _workspace_audit_feed(db, workspace.id, limit=limit)})
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/ingest/runs")
+async def api_workspace_ingest_runs(
+    slug: str,
+    limit: int = 25,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/ingest/runs", "GET", metadata={"limit": limit})
+        db.commit()
+        return JSONResponse({"workspace": workspace.slug, "runs": _workspace_ingest_runs(db, workspace.id, limit=limit)})
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/export/recent")
+async def api_workspace_export_recent(
+    slug: str,
+    limit: int = 100,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        safe_limit = max(1, min(limit, 250))
+        record_api_event(db, workspace.id, api_key.id, "/export/recent", "GET", metadata={"limit": safe_limit})
+        db.commit()
+        return JSONResponse(
+            {
+                "workspace": workspace.slug,
+                "exported_at": datetime.utcnow().isoformat(),
+                "memories": workspace_recent_memories(workspace.schema_name, limit=safe_limit),
+            }
+        )
     finally:
         db.close()
 
@@ -1001,6 +1309,9 @@ async def api_workspace_bootstrap(
                     "recent_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/memories/recent",
                     "audit_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/audit",
                     "usage_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/usage",
+                    "ingest_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/ingest",
+                    "ingest_runs_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/ingest/runs",
+                    "recent_export_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/export/recent",
                     "headers": base_headers,
                 },
                 "mcp": {

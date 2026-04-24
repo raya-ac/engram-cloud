@@ -38,6 +38,7 @@ class Workspace(Base):
     api_keys: Mapped[list["WorkspaceApiKey"]] = relationship(back_populates="workspace")
     audit_events: Mapped[list["AuditEvent"]] = relationship(back_populates="workspace")
     api_events: Mapped[list["WorkspaceApiEvent"]] = relationship(back_populates="workspace")
+    ingest_runs: Mapped[list["WorkspaceIngestRun"]] = relationship(back_populates="workspace")
 
 
 class WorkspaceMember(Base):
@@ -118,3 +119,23 @@ class WorkspaceApiEvent(Base):
 
     workspace: Mapped[Workspace] = relationship(back_populates="api_events")
     api_key: Mapped[WorkspaceApiKey | None] = relationship(back_populates="events")
+
+
+class WorkspaceIngestRun(Base):
+    __tablename__ = "workspace_ingest_runs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    actor_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    api_key_id: Mapped[str | None] = mapped_column(ForeignKey("workspace_api_keys.id"), nullable=True)
+    source_name: Mapped[str] = mapped_column(String, default="manual import")
+    source_type: Mapped[str] = mapped_column(String, default="text")
+    layer: Mapped[str] = mapped_column(String, default="episodic")
+    memory_type: Mapped[str] = mapped_column(String, default="narrative")
+    item_count: Mapped[int] = mapped_column(default=0)
+    character_count: Mapped[int] = mapped_column(default=0)
+    status: Mapped[str] = mapped_column(String, default="completed")
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    workspace: Mapped[Workspace] = relationship(back_populates="ingest_runs")

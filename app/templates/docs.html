@@ -91,6 +91,11 @@ X-API-Key: engram_...</div>
     <p class="subtle">Store new narrative, fact, or procedure memories.</p>
   </div>
   <div class="surface-block">
+    <h3>Ingest</h3>
+    <p><code>POST /api/workspaces/{slug}/ingest</code></p>
+    <p class="subtle">Batch import pasted text, JSON items, or pipeline output into workspace memory.</p>
+  </div>
+  <div class="surface-block">
     <h3>Recent</h3>
     <p><code>GET /api/workspaces/{slug}/memories/recent</code></p>
     <p class="subtle">Load the last memories written to the workspace.</p>
@@ -106,11 +111,42 @@ X-API-Key: engram_...</div>
     <p class="subtle">Read per-key API activity, route counts, and the latest service calls.</p>
   </div>
   <div class="surface-block">
+    <h3>Ingest runs</h3>
+    <p><code>GET /api/workspaces/{slug}/ingest/runs</code></p>
+    <p class="subtle">Inspect source names, item counts, actors, and timestamps for imports.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Recent export</h3>
+    <p><code>GET /api/workspaces/{slug}/export/recent</code></p>
+    <p class="subtle">Export recent workspace memories as JSON for backups or inspection.</p>
+  </div>
+  <div class="surface-block">
     <h3>MCP bridge</h3>
     <p><code>POST /api/workspaces/{slug}/mcp</code></p>
     <p class="subtle">Call selected Engram tools through one hosted bridge.</p>
   </div>
 </section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Ingestion payload</h2>
+    <p class="subtle">The batch ingest API accepts either an `items` array or a text `content` field with a split mode.</p>
+  </div>
+</section>
+
+<div class="surface-block fade-reveal">
+  <div class="copy-row">
+    <div class="code-block" id="docs-ingest-payload">POST /api/workspaces/{slug}/ingest
+{
+  "source_name": "handoff.md",
+  "source_type": "handoff",
+  "items": ["Decision one", "Follow-up two"],
+  "layer": "episodic",
+  "memory_type": "fact"
+}</div>
+    <button class="button copy-button" data-copy="#docs-ingest-payload" type="button">Copy</button>
+  </div>
+</div>
 
 <section class="section-title fade-reveal">
   <div>

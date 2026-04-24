@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, split_ingest_text
 
 
 client = TestClient(app)
@@ -13,6 +13,8 @@ def test_public_service_pages_render():
     docs = client.get("/docs")
     assert "Plug agents into memory" in docs.text
     assert "/api/workspaces/{slug}/usage" in docs.text
+    assert "/api/workspaces/{slug}/ingest" in docs.text
+    assert "/api/workspaces/{slug}/export/recent" in docs.text
     pricing = client.get("/pricing", follow_redirects=False)
     assert pricing.status_code == 302
     assert pricing.headers["location"] == "/docs"
@@ -48,3 +50,9 @@ def test_skills_endpoints_expose_json_and_markdown():
     skill_md = client.get("/api/skills/workspace-memory.md")
     assert skill_md.status_code == 200
     assert "# Workspace Memory" in skill_md.text
+
+
+def test_ingest_text_split_modes():
+    assert split_ingest_text("one\n\ntwo", mode="paragraphs") == ["one", "two"]
+    assert split_ingest_text("- one\n- two", mode="lines") == ["one", "two"]
+    assert split_ingest_text('{"items":["one","two"]}', mode="json") == ["one", "two"]

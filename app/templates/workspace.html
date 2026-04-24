@@ -31,6 +31,25 @@
   </div>
 </section>
 
+<section class="grid four" style="margin-bottom:18px">
+  <div class="card">
+    <div class="stat">{{ operator_summary.ingested_items or 0 }}</div>
+    <div class="subtle">ingested items</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ operator_summary.ingest_runs or 0 }}</div>
+    <div class="subtle">ingest runs</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ operator_summary.active_keys or 0 }}</div>
+    <div class="subtle">active api keys</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ operator_summary.open_invites or 0 }}</div>
+    <div class="subtle">open invites</div>
+  </div>
+</section>
+
 <div class="split">
   <div class="grid">
     <div class="card">
@@ -49,6 +68,69 @@
         <input type="text" name="query" value="{{ search_query or '' }}" placeholder="Search this workspace" required>
         <button class="button primary" type="submit">Search</button>
       </form>
+      <div class="badge-row" style="margin-top:12px">
+        <a class="badge" href="/app/workspaces/{{ workspace.slug }}">clear</a>
+        <button class="badge" type="button" data-copy="#workspace-export-cmd">copy export cmd</button>
+        <a class="badge" href="{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/export/recent">recent export api</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Ingest data</h3>
+      <p class="subtle" style="margin-bottom:12px">Paste notes, logs, transcripts, reports, CSV rows, markdown, or upload a text-like file. The service splits it into memories and records the import run.</p>
+      <form method="post" action="/app/workspaces/{{ workspace.slug }}/ingest" enctype="multipart/form-data">
+        <input type="text" name="source_name" placeholder="Source name, e.g. incident-notes.md">
+        <textarea name="ingest_text" placeholder="Paste data to ingest"></textarea>
+        <input type="file" name="upload" accept=".txt,.md,.json,.csv,.log,.yaml,.yml">
+        <select name="split_mode">
+          <option value="auto">auto split</option>
+          <option value="paragraphs">paragraphs</option>
+          <option value="lines">lines</option>
+          <option value="single">single memory</option>
+          <option value="json">json items</option>
+        </select>
+        <select name="source_type">
+          <option value="notes">notes</option>
+          <option value="handoff">handoff</option>
+          <option value="transcript">transcript</option>
+          <option value="report">report</option>
+          <option value="log">log</option>
+          <option value="dataset">dataset</option>
+        </select>
+        <select name="layer">
+          <option value="episodic">episodic</option>
+          <option value="semantic">semantic</option>
+          <option value="procedural">procedural</option>
+          <option value="working">working</option>
+        </select>
+        <select name="memory_type">
+          <option value="narrative">narrative</option>
+          <option value="fact">fact</option>
+          <option value="procedure">procedure</option>
+        </select>
+        <button class="button primary" type="submit">Ingest into memory</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Ingest runs</h3>
+      {% if ingest_runs %}
+      <div class="list">
+        {% for run in ingest_runs %}
+        <div class="item">
+          <div>{{ run.source_name }}</div>
+          <div class="meta">
+            <span>{{ run.item_count }} item{% if run.item_count != 1 %}s{% endif %}</span>
+            <span>{{ run.source_type }}</span>
+            <span>{{ run.actor }}</span>
+            <span>{{ run.created_at }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No ingestion runs yet.</div>
+      {% endif %}
     </div>
 
     <div class="card">
@@ -218,6 +300,14 @@
           <div class="meta"><span>usage</span><span>per-key activity</span></div>
         </div>
         <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/ingest</div>
+          <div class="meta"><span>ingest</span><span>batch import</span></div>
+        </div>
+        <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/export/recent</div>
+          <div class="meta"><span>export</span><span>recent json</span></div>
+        </div>
+        <div class="item">
           <div>{{ settings.base_url }}/api/skills</div>
           <div class="meta"><span>starter skills</span><span>downloadable</span></div>
         </div>
@@ -245,6 +335,20 @@
             <button class="button copy-button" data-copy="#workspace-recall-cmd" type="button">Copy</button>
           </div>
           <div class="meta"><span>bridge</span><span>recent context</span></div>
+        </div>
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-ingest-cmd">curl -X POST -H "Authorization: Bearer engram_..." -H "Content-Type: application/json" -d '{"source_name":"handoff.md","items":["Important finding one","Important finding two"],"layer":"episodic","memory_type":"fact"}' "{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/ingest"</div>
+            <button class="button copy-button" data-copy="#workspace-ingest-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>ingest</span><span>batch memories</span></div>
+        </div>
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-export-cmd">curl -H "Authorization: Bearer engram_..." "{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/export/recent?limit=100"</div>
+            <button class="button copy-button" data-copy="#workspace-export-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>export</span><span>recent json</span></div>
         </div>
       </div>
     </div>
