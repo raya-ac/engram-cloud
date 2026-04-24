@@ -173,6 +173,10 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
         headers=headers,
         json={"tool": "recall_recent", "args": {"limit": 2}},
     ).json()["result"]
+    tools_payload = client.get("/api/workspaces/flow-test/mcp/tools", headers=headers).json()
+    tool_names = {tool["name"] for tool in tools_payload["tools"]}
+    assert {"recall_context", "session_handoff", "remember_negative", "get_skills"}.issubset(tool_names)
+    assert next(tool for tool in tools_payload["tools"] if tool["name"] == "recall_context")["args"]["query"] == "string"
     assert client.get("/api/workspaces/flow-test/usage", headers=headers).json()["summary"]["total_calls"] >= 7
     assert client.get("/api/workspaces/flow-test/audit", headers=headers).json()["events"]
 

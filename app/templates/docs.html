@@ -170,7 +170,7 @@ X-API-Key: engram_...</div>
 <section class="section-title fade-reveal">
   <div>
     <h2>Bridge tools</h2>
-    <p class="subtle">The hosted bridge intentionally exposes a smaller, reliable subset of Engram.</p>
+    <p class="subtle">The hosted bridge exposes the agent-safe Engram surface: retrieval, handoff, skill selection, curation, and workspace health.</p>
   </div>
 </section>
 
@@ -179,6 +179,13 @@ X-API-Key: engram_...</div>
   <div class="surface-block">
     <h3>{{ tool.name }}</h3>
     <p>{{ tool.summary }}</p>
+    {% if tool.args %}
+    <div class="meta">
+      {% for arg_name, arg_detail in tool.args.items() %}
+      <span>{{ arg_name }}: {{ arg_detail }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
   {% endfor %}
 </section>

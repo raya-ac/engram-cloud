@@ -15,6 +15,9 @@ def test_public_service_pages_render():
     assert "/api/workspaces/{slug}/usage" in docs.text
     assert "/api/workspaces/{slug}/ingest" in docs.text
     assert "/api/workspaces/{slug}/export/recent" in docs.text
+    assert "recall_context" in docs.text
+    assert "session_handoff" in docs.text
+    assert "remember_negative" in docs.text
     pricing = client.get("/pricing", follow_redirects=False)
     assert pricing.status_code == 302
     assert pricing.headers["location"] == "/docs"

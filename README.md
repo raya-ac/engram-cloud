@@ -49,7 +49,7 @@ For the actual memory runtime, a VPS is the clean default.
 - recent memory export endpoint for backups and inspection
 - warm workspace runtime cache so search and memory writes do not rebuild Engram state on every request
 - workspace bootstrap endpoint for agents
-- hosted MCP-style bridge for selected Engram tools
+- hosted MCP-style bridge for retrieval, handoff, skills, curation, and memory health tools
 - starter skill downloads in JSON and markdown
 - public docs, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
@@ -150,6 +150,15 @@ Each workspace can expose:
 - `GET /api/workspaces/{slug}/export/recent`
 - `GET /api/workspaces/{slug}/mcp/tools`
 - `POST /api/workspaces/{slug}/mcp`
+
+The bridge includes tool discovery with argument hints. Current tools cover:
+
+- status, health, memory map, quality metrics, and grouped counts
+- recall, compact context, hints, recent memories, entity lookup, and fuzzy entity search
+- focused task briefs, layered prompt context, and procedural skill selection
+- remember, decisions, errors, interactions, negative knowledge, and project state
+- session checkpoints, handoff snapshots, and resume context
+- hotspots, query comparison, export, memory status history, tags, pin, and forget
 
 The service also exposes starter skills:
 
