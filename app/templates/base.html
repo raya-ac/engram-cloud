@@ -206,7 +206,7 @@
     }
     .hero-visual {
       position: relative;
-      min-height: min(620px, calc(100svh - 142px));
+      min-height: min(590px, calc(100svh - 142px));
       border: 1px solid rgba(17,17,15,0.14);
       border-radius: 22px;
       animation: fade-up 900ms ease both;
@@ -298,7 +298,7 @@
     }
     .hero-flow {
       position: absolute;
-      inset: 82px 30px 178px;
+      inset: 62px 30px 188px;
       z-index: 1;
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -798,14 +798,12 @@
         padding: 28px 0 34px;
       }
       .hero h2 { font-size: clamp(40px, 13vw, 62px); line-height: 0.94; }
-      .hero-visual {
-        min-height: 460px;
-      }
+      .hero-visual { min-height: 440px; }
       .hero-flow {
         position: relative;
         inset: auto;
         grid-template-columns: 1fr;
-        margin: 72px 14px 154px;
+        margin: 54px 14px 142px;
       }
       .flow-card { min-height: auto; padding: 14px; }
       .flow-card::before { font-size: 44px; }
