@@ -848,9 +848,19 @@ def public_manifest() -> dict:
 
 CHANGELOG_ENTRIES = [
     {
+        "version": "Visual system overhaul",
+        "date": "2026-04-24",
+        "changes": [
+            "Reworked the shared public UI around a full-bleed hero, glass navigation, stronger typography, and a sharper infrastructure-console visual system.",
+            "Added more deliberate motion, hover states, illuminated code blocks, and orbital memory visuals across inherited pages.",
+            "Updated the landing, docs, agent, connect, API, and workspace surfaces to feel like one cohesive product instead of separate template pages.",
+            "Kept the free hosted-service positioning while making the connection kit and API setup paths more prominent.",
+        ],
+    },
+    {
         "version": "Cloud host",
         "date": "2026-04-24",
-            "changes": [
+        "changes": [
             "Added workspace paste, file, and batch API ingestion.",
             "Added ingestion run history and recent memory export.",
             "Added structured API usage tracking per workspace key.",

@@ -4,31 +4,31 @@
 <section class="hero">
   <div class="hero-inner">
     <div class="hero-copy">
-      <div class="eyebrow">Hosted memory runtime</div>
+      <div class="eyebrow">Memorylayer hosted runtime</div>
       <div class="badge-row hero-badges">
         <span class="badge">GitHub login</span>
         <span class="badge">Hosted MCP bridge</span>
         <span class="badge">{{ tools|length }} tools</span>
         <span class="badge">Workspace isolation</span>
       </div>
-      <h2>Memory that stays with the agent.</h2>
-      <p>Hosted Engram workspaces with API keys, ingestion, usage trails, and a small bridge agents can connect to without carrying a local database around.</p>
+      <h2>The memory layer agents should have had.</h2>
+      <p>Hosted Engram workspaces with API keys, ingestion, usage trails, connection kits, and an HTTP bridge agents can connect to without dragging a local database between sessions.</p>
       <div class="nav" style="margin-top:22px">
         <a href="/login/github" class="button primary">Create a workspace</a>
-        <a href="/docs" class="button">Read docs</a>
+        <a href="/connect" class="button">Connect an agent</a>
       </div>
       <div class="public-rail">
         <div>
-          <strong>Hosted runtime</strong>
-          <p class="subtle">Long-lived Python service and Postgres, instead of forcing memory through a serverless shape.</p>
+          <strong>One clean handoff</strong>
+          <p class="subtle">Agents can recall the project, do the work, and leave a checkpoint behind.</p>
         </div>
       <div>
-        <strong>Agent bootstrap</strong>
-        <p class="subtle">Every workspace exposes API URLs, tool discovery, and starter skills for plug-and-play setup.</p>
+        <strong>Config over guessing</strong>
+        <p class="subtle">Every workspace exposes connection JSON, env output, tool discovery, and starter skills.</p>
         </div>
         <div>
           <strong>Free for now</strong>
-          <p class="subtle">The goal is making hosted memory usable, not gatekeeping it behind fake plans.</p>
+          <p class="subtle">The goal is a useful hosted memory service first, not fake pricing-page theater.</p>
         </div>
       </div>
     </div>
@@ -47,8 +47,8 @@
       </div>
       <div class="signal-stack">
         <div class="signal-line">
-          <strong>Workspace bootstrap</strong>
-          <span>API keys, bridge URL, tool discovery, starter skills</span>
+          <strong>Connection kit</strong>
+          <span>Config JSON, env block, bridge URL, tool discovery, starter skills</span>
         </div>
         <div class="signal-line">
           <strong>HTTP MCP bridge</strong>
@@ -65,8 +65,8 @@
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>Live surface area</h2>
-    <p class="subtle">The site now documents the operational pieces that make Memorylayer useful as a hosted service.</p>
+    <h2>The service is already inspectable.</h2>
+    <p class="subtle">Memorylayer exposes the operational pieces agent clients need instead of hiding them behind a marketing page.</p>
   </div>
   <a href="/status" class="button">View service status</a>
 </section>
@@ -74,52 +74,52 @@
 <section class="grid four fade-reveal">
   <div class="surface-block">
     <div class="stat">{{ capability_count }}</div>
-    <p class="subtle">capabilities tracked across service, site, and agent surfaces</p>
+    <p class="subtle">capabilities tracked across service, site, and agent surfaces.</p>
   </div>
   <div class="surface-block">
     <div class="stat">{{ tools|length }}</div>
-    <p class="subtle">hosted bridge tools exposed for agent workflows</p>
+    <p class="subtle">hosted bridge tools exposed for agent workflows.</p>
   </div>
   <div class="surface-block">
-    <div class="stat">4</div>
-    <p class="subtle">integration recipes ready to copy into clients</p>
+    <div class="stat">{{ api_examples|length }}</div>
+    <p class="subtle">request and response fixtures for client builders.</p>
   </div>
   <div class="surface-block">
     <div class="stat">0</div>
-    <p class="subtle">pricing tiers; the service is free while it hardens</p>
+    <p class="subtle">pricing tiers; the service is free while it hardens.</p>
   </div>
 </section>
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>Machine-readable setup</h2>
-    <p class="subtle">Clients can discover the public service map, full capability ledger, and MCP tool groups through JSON.</p>
+    <h2>Start from the connection kit.</h2>
+    <p class="subtle">New clients should not scrape docs or guess URLs. Ask the workspace for the config it wants you to use.</p>
   </div>
-  <a href="/api/service/manifest" class="button">Service manifest</a>
+  <a href="/connect" class="button">Connect guide</a>
 </section>
 
 <section class="grid three fade-reveal">
   <div class="surface-block">
-    <h3>Capability JSON</h3>
-    <p><code>/api/capabilities</code></p>
-    <p class="subtle">Full feature ledger, recipes, and public counts.</p>
+    <h3>Config JSON</h3>
+    <p><code>/api/workspaces/{slug}/connect</code></p>
+    <p class="subtle">Endpoint map, MCP settings, starter skills, and recommended startup calls.</p>
   </div>
   <div class="surface-block">
-    <h3>MCP manifest</h3>
-    <p><code>/api/mcp/manifest</code></p>
-    <p class="subtle">Grouped bridge tools, auth shape, and URL templates.</p>
+    <h3>Env block</h3>
+    <p><code>/api/workspaces/{slug}/env</code></p>
+    <p class="subtle">Plain variables for local scripts, launchers, and worker processes.</p>
   </div>
   <div class="surface-block">
-    <h3>Service manifest</h3>
-    <p><code>/api/service/manifest</code></p>
-    <p class="subtle">Routes and metadata for agent launchers.</p>
+    <h3>Bridge tools</h3>
+    <p><code>/api/workspaces/{slug}/mcp/tools</code></p>
+    <p class="subtle">A workspace-scoped tool catalog with argument hints.</p>
   </div>
 </section>
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>Copy the client shape</h2>
-    <p class="subtle">SDK snippets and playbooks are part of the service now, available as pages and JSON.</p>
+    <h2>Copy the client shape.</h2>
+    <p class="subtle">SDK snippets, playbooks, and API fixtures are part of the service surface, available as pages and JSON.</p>
   </div>
   <a href="/sdks" class="button">View SDK patterns</a>
 </section>
@@ -136,8 +136,8 @@
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>Capability map</h2>
-    <p class="subtle">A clearer inventory of the pieces agents and operators can use today.</p>
+    <h2>Designed for real agent sessions.</h2>
+    <p class="subtle">The useful path is compact: load memory, work, write the result, leave a clean stop point.</p>
   </div>
   <a href="/capabilities" class="button">View all</a>
 </section>
@@ -157,8 +157,8 @@
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>One service around the engine</h2>
-    <p class="subtle">The core package stays focused on memory behavior. Memorylayer handles the operational surface around it.</p>
+    <h2>One service around the engine.</h2>
+    <p class="subtle">Engram stays focused on memory behavior. Memorylayer handles identity, workspaces, keys, dashboards, and hosted access.</p>
   </div>
 </section>
 
@@ -203,8 +203,8 @@
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>What changed this round</h2>
-    <p class="subtle">A practical feature matrix, agent examples, security posture, status page, changelog, copyable snippets, and usage-aware docs.</p>
+    <h2>What is live now.</h2>
+    <p class="subtle">A practical feature matrix, agent examples, security posture, status page, changelog, copyable snippets, connection kits, and usage-aware docs.</p>
   </div>
 </section>
 
