@@ -14,7 +14,19 @@
     </div>
   </div>
   <div class="hero-visual">
-    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+    <div class="runtime-strip">
+      <span>env</span>
+      <span>auth</span>
+      <span>call</span>
+      <span>observe</span>
+    </div>
+    <div class="hero-flow">
+      <div class="flow-card"><div class="flow-index">01 / Env</div><div><strong>Set variables once</strong><p>Use MEMORYLAYER_URL, SLUG, and MEMORYLAYER_KEY across shell scripts and launchers.</p></div></div>
+      <div class="flow-card"><div class="flow-index">02 / Auth</div><div><strong>Send a workspace key</strong><p>Use Authorization bearer tokens or X-API-Key for every private workspace route.</p></div></div>
+      <div class="flow-card"><div class="flow-index">03 / Call</div><div><strong>Copy a working route</strong><p>Recipes cover bootstrap, MCP tools, ingest, usage, checkpointing, and curation.</p></div></div>
+      <div class="flow-card"><div class="flow-index">04 / Observe</div><div><strong>Check what happened</strong><p>Usage and audit feeds show which key called which route and when.</p></div></div>
+    </div>
+    <div class="signal-stack">
       <div class="signal-line"><strong>Variables</strong><span>Set MEMORYLAYER_URL, SLUG, and MEMORYLAYER_KEY first.</span></div>
       <div class="signal-line"><strong>Auth</strong><span>Use Authorization: Bearer or X-API-Key.</span></div>
       <div class="signal-line"><strong>Observe</strong><span>Every authenticated call appears in workspace usage.</span></div>

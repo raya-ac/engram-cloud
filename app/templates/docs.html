@@ -30,7 +30,19 @@
     </div>
   </div>
   <div class="hero-visual">
-    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+    <div class="runtime-strip">
+      <span>auth</span>
+      <span>bootstrap</span>
+      <span>routes</span>
+      <span>bridge</span>
+    </div>
+    <div class="hero-flow">
+      <div class="flow-card"><div class="flow-index">01 / Auth</div><div><strong>Workspace key</strong><p>Private routes accept Authorization bearer tokens or X-API-Key headers.</p></div></div>
+      <div class="flow-card"><div class="flow-index">02 / Bootstrap</div><div><strong>Discover the surface</strong><p>Load workspace URLs, starter skills, MCP tools, and OpenAPI links before wiring clients.</p></div></div>
+      <div class="flow-card"><div class="flow-index">03 / Routes</div><div><strong>Use direct APIs</strong><p>Search, remember, ingest, recent memory, usage, audit, and export are regular JSON endpoints.</p></div></div>
+      <div class="flow-card"><div class="flow-index">04 / Bridge</div><div><strong>Call higher-level tools</strong><p>Use `/mcp` for recall_context, handoff, decisions, entity pivots, and curation tools.</p></div></div>
+    </div>
+    <div class="signal-stack">
       <div class="signal-line">
         <strong>Auth</strong>
         <span>Workspace key via `Authorization: Bearer` or `X-API-Key`</span>

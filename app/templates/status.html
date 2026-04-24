@@ -12,7 +12,19 @@
     </div>
   </div>
   <div class="hero-visual">
-    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+    <div class="runtime-strip">
+      <span>runtime</span>
+      <span>database</span>
+      <span>health</span>
+      <span>ops</span>
+    </div>
+    <div class="hero-flow">
+      <div class="flow-card"><div class="flow-index">01 / Runtime</div><div><strong>FastAPI on VPS</strong><p>The hosted app runs as a long-lived Python service instead of a serverless function.</p></div></div>
+      <div class="flow-card"><div class="flow-index">02 / Database</div><div><strong>Postgres backed</strong><p>App metadata and workspace Engram schemas live in Postgres.</p></div></div>
+      <div class="flow-card"><div class="flow-index">03 / Health</div><div><strong>Public checks</strong><p>Health and service status endpoints expose basic uptime and public counts.</p></div></div>
+      <div class="flow-card"><div class="flow-index">04 / Ops</div><div><strong>Workspace visibility</strong><p>Usage, audit, ingest runs, and export routes help operators inspect behavior.</p></div></div>
+    </div>
+    <div class="signal-stack">
       <div class="signal-line"><strong>Runtime</strong><span>VPS-hosted FastAPI service.</span></div>
       <div class="signal-line"><strong>Database</strong><span>Postgres app metadata and Engram workspace schemas.</span></div>
       <div class="signal-line"><strong>Public health</strong><span>`/api/health` and `/api/service/status`.</span></div>

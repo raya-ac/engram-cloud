@@ -12,7 +12,19 @@
     </div>
   </div>
   <div class="hero-visual">
-    <div class="signal-stack" style="top:32px;right:28px;bottom:auto;">
+    <div class="runtime-strip">
+      <span>identity</span>
+      <span>keys</span>
+      <span>isolate</span>
+      <span>audit</span>
+    </div>
+    <div class="hero-flow">
+      <div class="flow-card"><div class="flow-index">01 / Identity</div><div><strong>GitHub only</strong><p>Users authenticate through GitHub OAuth, so Memorylayer does not store passwords.</p></div></div>
+      <div class="flow-card"><div class="flow-index">02 / Keys</div><div><strong>Scoped tokens</strong><p>Workspace API keys are shown once, hashed at rest, and revocable independently.</p></div></div>
+      <div class="flow-card"><div class="flow-index">03 / Isolation</div><div><strong>Separate schemas</strong><p>Each workspace maps to its own Engram schema and service boundary.</p></div></div>
+      <div class="flow-card"><div class="flow-index">04 / Audit</div><div><strong>Visible activity</strong><p>Memory writes, bridge calls, invites, keys, and usage events are recorded.</p></div></div>
+    </div>
+    <div class="signal-stack">
       <div class="signal-line"><strong>No passwords</strong><span>GitHub OAuth handles user authentication.</span></div>
       <div class="signal-line"><strong>Scoped keys</strong><span>Workspace API keys can be revoked independently.</span></div>
       <div class="signal-line"><strong>Auditability</strong><span>Memory writes, bridge calls, invites, keys, and usage are recorded.</span></div>
