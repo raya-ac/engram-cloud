@@ -7,7 +7,7 @@ client = TestClient(app)
 
 
 def test_public_service_pages_render():
-    for path in ("/", "/agents", "/docs", "/examples", "/security", "/status", "/changelog"):
+    for path in ("/", "/agents", "/docs", "/capabilities", "/examples", "/security", "/status", "/changelog"):
         response = client.get(path)
         assert response.status_code == 200
     docs = client.get("/docs")
@@ -18,6 +18,9 @@ def test_public_service_pages_render():
     assert "recall_context" in docs.text
     assert "session_handoff" in docs.text
     assert "remember_negative" in docs.text
+    capabilities = client.get("/capabilities")
+    assert "Capability ledger" in capabilities.text
+    assert "dream consolidation" in capabilities.text
     pricing = client.get("/pricing", follow_redirects=False)
     assert pricing.status_code == 302
     assert pricing.headers["location"] == "/docs"
@@ -28,6 +31,8 @@ def test_public_service_metadata_routes():
     assert service_status.status_code == 200
     assert service_status.json()["service"] == "memorylayer"
     assert service_status.json()["features"] >= 20
+    assert service_status.json()["capabilities"] >= 100
+    assert service_status.json()["mcp_tools"] >= 50
     assert "runtime_cache" in service_status.json()
 
     robots = client.get("/robots.txt")
@@ -36,6 +41,7 @@ def test_public_service_metadata_routes():
 
     sitemap = client.get("/sitemap.xml")
     assert sitemap.status_code == 200
+    assert "/capabilities" in sitemap.text
     assert "/examples" in sitemap.text
     assert "/security" in sitemap.text
 

@@ -9,6 +9,7 @@
     <div class="nav" style="margin-top:18px">
       <a href="{{ openapi_url }}" class="button">OpenAPI</a>
       <a href="/agents" class="button">Agent setup</a>
+      <a href="/capabilities" class="button">Capabilities</a>
       <a href="/login/github" class="button primary">Create a workspace</a>
     </div>
     <div class="public-rail">
@@ -18,7 +19,7 @@
       </div>
       <div>
         <strong>HTTP MCP bridge</strong>
-        <p class="subtle">One authenticated endpoint for a focused set of Engram tools.</p>
+        <p class="subtle">One authenticated endpoint for {{ tools|length }} Engram tools with argument hints.</p>
       </div>
       <div>
         <strong>Starter skills</strong>
@@ -213,8 +214,9 @@ X-API-Key: engram_...</div>
 <section class="section-title fade-reveal">
   <div>
     <h2>Feature matrix</h2>
-    <p class="subtle">The service surface is intentionally small, but it covers the pieces agents need in production.</p>
+    <p class="subtle">The full capability index tracks {{ capability_count }} service, site, and agent features.</p>
   </div>
+  <a href="/capabilities" class="button">Open index</a>
 </section>
 
 <section class="grid three fade-reveal">

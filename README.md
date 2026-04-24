@@ -50,6 +50,7 @@ For the actual memory runtime, a VPS is the clean default.
 - warm workspace runtime cache so search and memory writes do not rebuild Engram state on every request
 - workspace bootstrap endpoint for agents
 - hosted MCP-style bridge for retrieval, handoff, skills, curation, and memory health tools
+- public capability index with 100+ service, site, and agent-facing capabilities
 - starter skill downloads in JSON and markdown
 - public docs, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
@@ -170,6 +171,7 @@ Public service metadata:
 
 - `GET /api/health`
 - `GET /api/service/status` including runtime cache metrics
+- `GET /capabilities` for the public capability index
 - `GET /robots.txt`
 - `GET /sitemap.xml`
 

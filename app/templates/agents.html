@@ -22,7 +22,7 @@
       </div>
       <div>
         <strong>Bridge</strong>
-        <p class="subtle">Use hosted HTTP tool calls when the agent cannot run a local MCP server.</p>
+        <p class="subtle">{{ tools|length }} hosted tool calls when the agent cannot run a local MCP server.</p>
       </div>
       <div>
         <strong>Skills</strong>
@@ -71,6 +71,27 @@
       <div class="code-block" id="agent-recipe-{{ loop.index }}">{{ recipe.command }}</div>
       <button class="button copy-button" data-copy="#agent-recipe-{{ loop.index }}" type="button">Copy</button>
     </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Agent capability groups</h2>
+    <p class="subtle">The service now covers bootstrap, retrieval, graph lookup, memory writes, session handoff, and curation.</p>
+  </div>
+  <a href="/capabilities" class="button">Full index</a>
+</section>
+
+<section class="capability-ledger fade-reveal">
+  {% for group in capability_groups[:6] %}
+  <div class="capability-group">
+    <h3>{{ group.name }}</h3>
+    <ul class="capability-list">
+      {% for item in group["items"][:5] %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
   </div>
   {% endfor %}
 </section>

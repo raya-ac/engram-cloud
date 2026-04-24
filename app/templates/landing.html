@@ -8,6 +8,7 @@
       <div class="badge-row hero-badges">
         <span class="badge">GitHub login</span>
         <span class="badge">Hosted MCP bridge</span>
+        <span class="badge">{{ tools|length }} tools</span>
         <span class="badge">Workspace isolation</span>
       </div>
       <h2>Memory that stays with the agent.</h2>
@@ -72,11 +73,11 @@
 
 <section class="grid four fade-reveal">
   <div class="surface-block">
-    <div class="stat">{{ features|length }}</div>
-    <p class="subtle">service capabilities tracked in the product surface</p>
+    <div class="stat">{{ capability_count }}</div>
+    <p class="subtle">capabilities tracked across service, site, and agent surfaces</p>
   </div>
   <div class="surface-block">
-    <div class="stat">9</div>
+    <div class="stat">{{ tools|length }}</div>
     <p class="subtle">hosted bridge tools exposed for agent workflows</p>
   </div>
   <div class="surface-block">
@@ -87,6 +88,27 @@
     <div class="stat">0</div>
     <p class="subtle">pricing tiers; the service is free while it hardens</p>
   </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Capability map</h2>
+    <p class="subtle">A clearer inventory of the pieces agents and operators can use today.</p>
+  </div>
+  <a href="/capabilities" class="button">View all</a>
+</section>
+
+<section class="capability-ledger fade-reveal">
+  {% for group in capability_groups[:4] %}
+  <div class="capability-group">
+    <h3>{{ group.name }}</h3>
+    <ul class="capability-list">
+      {% for item in group["items"][:6] %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
 </section>
 
 <section class="section-title fade-reveal">

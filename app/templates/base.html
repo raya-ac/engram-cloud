@@ -446,6 +446,45 @@
       padding: 24px 0;
       border-top: 1px solid var(--line);
     }
+    .capability-ledger {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 36px;
+      border-top: 1px solid var(--line);
+    }
+    .capability-group {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .capability-group h3 {
+      margin: 0 0 14px;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+    .capability-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 18px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .capability-list li {
+      position: relative;
+      padding-left: 14px;
+    }
+    .capability-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.72em;
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.48);
+    }
     .compact-table {
       width: 100%;
       border-collapse: collapse;
@@ -530,7 +569,7 @@
     }
     @media (max-width: 960px) {
       .shell { padding: 16px 18px 56px; }
-      .hero-inner, .split, .grid.two, .grid.three, .grid.four, .detail-grid, .public-rail, .timeline-item, .copy-row { grid-template-columns: 1fr; }
+      .hero-inner, .split, .grid.two, .grid.three, .grid.four, .detail-grid, .public-rail, .timeline-item, .copy-row, .capability-ledger, .capability-list { grid-template-columns: 1fr; }
       .hero-inner {
         min-height: auto;
         gap: 20px;
@@ -561,6 +600,7 @@
       <div class="nav">
         <a href="/docs">Docs</a>
         <a href="/agents">Agents</a>
+        <a href="/capabilities">Capabilities</a>
         <a href="/examples">Examples</a>
         <a href="/security">Security</a>
         {% if current_user_id %}

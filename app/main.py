@@ -116,6 +116,194 @@ INTEGRATION_RECIPES = [
 ]
 
 
+CAPABILITY_GROUPS = [
+    {
+        "name": "Agent runtime",
+        "items": [
+            "workspace bootstrap",
+            "HTTP MCP bridge",
+            "tool discovery",
+            "argument hints",
+            "starter skills",
+            "OpenAPI contract",
+            "copyable recipes",
+            "agent setup page",
+            "workspace-scoped keys",
+            "usage-visible agent calls",
+        ],
+    },
+    {
+        "name": "Retrieval",
+        "items": [
+            "semantic recall",
+            "compact recall context",
+            "recognition hints",
+            "recent memory lookup",
+            "fact-only retrieval",
+            "procedure-aware retrieval",
+            "full-context retrieval",
+            "retrieval explanations",
+            "query comparison",
+            "compressed query summaries",
+        ],
+    },
+    {
+        "name": "Knowledge graph",
+        "items": [
+            "entity search",
+            "entity graph export",
+            "entity timeline",
+            "related entity traversal",
+            "memory backlinks",
+            "similar memory lookup",
+            "entity aliases",
+            "entity metadata",
+            "entity merge",
+            "community detection",
+        ],
+    },
+    {
+        "name": "Memory writes",
+        "items": [
+            "narrative memory",
+            "fact memory",
+            "procedure memory",
+            "decision memory",
+            "error memory",
+            "negative knowledge",
+            "interaction capture",
+            "project state",
+            "session diary",
+            "manual dashboard writes",
+        ],
+    },
+    {
+        "name": "Session continuity",
+        "items": [
+            "session checkpoint",
+            "session handoff",
+            "resume context",
+            "session summary",
+            "recent activity",
+            "handoff starter skill",
+            "workspace memory skill",
+            "task skill selection",
+            "layered prompt context",
+            "focus briefs",
+        ],
+    },
+    {
+        "name": "Curation",
+        "items": [
+            "memory annotate",
+            "memory edit",
+            "memory invalidate",
+            "status transitions",
+            "status history",
+            "tag add",
+            "tag remove",
+            "batch tagging",
+            "pin memory",
+            "forget memory",
+        ],
+    },
+    {
+        "name": "Maintenance",
+        "items": [
+            "promote memory",
+            "demote memory",
+            "unpin memory",
+            "link memories",
+            "deduplicate memories",
+            "dream consolidation",
+            "pattern extraction",
+            "quality metrics",
+            "access patterns",
+            "reranker status",
+        ],
+    },
+    {
+        "name": "Ingestion",
+        "items": [
+            "paste ingest",
+            "file ingest",
+            "JSON ingest",
+            "line splitting",
+            "paragraph splitting",
+            "single-block ingest",
+            "batch API ingest",
+            "source naming",
+            "source type labels",
+            "ingest run history",
+        ],
+    },
+    {
+        "name": "Operations",
+        "items": [
+            "service status page",
+            "runtime cache stats",
+            "workspace health",
+            "memory map",
+            "layer counts",
+            "month counts",
+            "source counts",
+            "entity counts",
+            "recent export",
+            "service metadata API",
+        ],
+    },
+    {
+        "name": "Workspace control",
+        "items": [
+            "GitHub login",
+            "workspace creation",
+            "workspace invites",
+            "member records",
+            "API key creation",
+            "API key revocation",
+            "key last-used tracking",
+            "audit history",
+            "usage route counts",
+            "usage event feed",
+        ],
+    },
+    {
+        "name": "Public site",
+        "items": [
+            "home page",
+            "docs page",
+            "agent page",
+            "examples page",
+            "security page",
+            "status page",
+            "changelog page",
+            "capabilities page",
+            "robots.txt",
+            "sitemap.xml",
+        ],
+    },
+    {
+        "name": "Deployment",
+        "items": [
+            "VPS runtime",
+            "Dockerfile",
+            "docker compose",
+            "Postgres metadata",
+            "workspace Postgres schemas",
+            "warm runtime cache",
+            "runtime eviction",
+            "Caddy/nginx ready",
+            "serverless guidance",
+            "proprietary license page",
+        ],
+    },
+]
+
+
+def capability_count() -> int:
+    return sum(len(group["items"]) for group in CAPABILITY_GROUPS)
+
+
 CHANGELOG_ENTRIES = [
     {
         "version": "Cloud host",
@@ -541,12 +729,28 @@ def safe_workspace_snapshot(schema_name: str, recent_limit: int = 4) -> tuple[di
 async def home(request: Request):
     if current_user_id(request):
         return RedirectResponse("/app", status_code=302)
-    return render(request, "landing.html", features=SERVICE_FEATURES, recipes=INTEGRATION_RECIPES)
+    return render(
+        request,
+        "landing.html",
+        features=SERVICE_FEATURES,
+        recipes=INTEGRATION_RECIPES,
+        tools=SUPPORTED_TOOLS,
+        capability_groups=CAPABILITY_GROUPS,
+        capability_count=capability_count(),
+    )
 
 
 @app.get("/agents", response_class=HTMLResponse)
 async def agents_page(request: Request):
-    return render(request, "agents.html", skills=starter_skill_list(), recipes=INTEGRATION_RECIPES)
+    return render(
+        request,
+        "agents.html",
+        skills=starter_skill_list(),
+        recipes=INTEGRATION_RECIPES,
+        tools=SUPPORTED_TOOLS,
+        capability_groups=CAPABILITY_GROUPS,
+        capability_count=capability_count(),
+    )
 
 
 @app.get("/pricing")
@@ -563,7 +767,21 @@ async def docs_page(request: Request):
         tools=SUPPORTED_TOOLS,
         features=SERVICE_FEATURES,
         recipes=INTEGRATION_RECIPES,
+        capability_groups=CAPABILITY_GROUPS,
+        capability_count=capability_count(),
         openapi_url=f"{settings.base_url}/openapi.json",
+    )
+
+
+@app.get("/capabilities", response_class=HTMLResponse)
+async def capabilities_page(request: Request):
+    return render(
+        request,
+        "capabilities.html",
+        tools=SUPPORTED_TOOLS,
+        features=SERVICE_FEATURES,
+        capability_groups=CAPABILITY_GROUPS,
+        capability_count=capability_count(),
     )
 
 
@@ -596,6 +814,8 @@ async def api_service_status():
             "runtime": "vps",
             "database": "postgres",
             "features": len(SERVICE_FEATURES),
+            "capabilities": capability_count(),
+            "mcp_tools": len(SUPPORTED_TOOLS),
             "base_url": settings.base_url,
             "runtime_cache": workspace_runtime_stats(),
         }
@@ -612,7 +832,7 @@ async def robots_txt():
 
 @app.get("/sitemap.xml")
 async def sitemap_xml():
-    routes = ["", "agents", "docs", "examples", "security", "status", "changelog", "login"]
+    routes = ["", "agents", "docs", "capabilities", "examples", "security", "status", "changelog", "login"]
     body = "\n".join(
         f"  <url><loc>{settings.base_url}/{route}</loc></url>" if route else f"  <url><loc>{settings.base_url}/</loc></url>"
         for route in routes

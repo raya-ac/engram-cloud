@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Capabilities · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">Capability index</div>
+      <h2>The surface area is explicit.</h2>
+      <p>Memorylayer is still small, but the parts agents can use are now visible: hosted tools, workspace control, ingestion, curation, and service operations.</p>
+      <div class="nav" style="margin-top:18px">
+        <a href="/docs" class="button">Read docs</a>
+        <a href="/agents" class="button">Agent setup</a>
+        <a href="/login/github" class="button primary">Create workspace</a>
+      </div>
+      <div class="public-rail">
+        <div>
+          <strong>{{ capability_count }}</strong>
+          <p class="subtle">capabilities tracked across service, site, and agent surfaces</p>
+        </div>
+        <div>
+          <strong>{{ tools|length }}</strong>
+          <p class="subtle">hosted MCP bridge tools with argument hints</p>
+        </div>
+        <div>
+          <strong>{{ features|length }}</strong>
+          <p class="subtle">core service features documented in the app</p>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>runtime</span>
+        <span>memory</span>
+        <span>graph</span>
+        <span>ops</span>
+      </div>
+      <div class="orbital-stage">
+        <div class="orbital-core"></div>
+        <div class="memory-node node-a"></div>
+        <div class="memory-node node-b"></div>
+        <div class="memory-node node-c"></div>
+      </div>
+      <div class="signal-stack">
+        <div class="signal-line"><strong>Discover</strong><span>Bootstrap, tool list, OpenAPI, starter skills</span></div>
+        <div class="signal-line"><strong>Operate</strong><span>Usage, audit, status, health, runtime cache</span></div>
+        <div class="signal-line"><strong>Curate</strong><span>Tags, pins, edits, status transitions, consolidation</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Capability ledger</h2>
+    <p class="subtle">A scan-friendly map of what the service can do now.</p>
+  </div>
+</section>
+
+<section class="capability-ledger fade-reveal">
+  {% for group in capability_groups %}
+  <div class="capability-group">
+    <h3>{{ group.name }}</h3>
+    <ul class="capability-list">
+      {% for item in group["items"] %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>MCP tools</h2>
+    <p class="subtle">The bridge returns this metadata from `/api/workspaces/{slug}/mcp/tools`.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  {% for tool in tools %}
+  <div class="surface-block">
+    <h3>{{ tool.name }}</h3>
+    <p>{{ tool.summary }}</p>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}
