@@ -665,7 +665,45 @@
     }
     @media (max-width: 960px) {
       .shell { padding: 12px 16px 56px; }
-      .topbar { border-radius: 24px; align-items: flex-start; flex-direction: column; }
+      .topbar {
+        gap: 10px;
+        padding: 10px;
+        border-radius: 16px;
+        align-items: stretch;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .brand { gap: 10px; min-width: 0; }
+      .brand-mark { width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto; }
+      .brand-mark::before { inset: 8px; }
+      .brand-mark::after { inset: 11px; }
+      .brand h1 { font-size: 15px; }
+      .brand p { display: none; }
+      .topbar > .nav {
+        flex-wrap: nowrap;
+        gap: 8px;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 2px 0 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .topbar > .nav::-webkit-scrollbar { display: none; }
+      .topbar > .nav a,
+      .topbar > .nav .button {
+        flex: 0 0 auto;
+        padding: 7px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+        line-height: 1.1;
+        white-space: nowrap;
+      }
+      .topbar > .nav .button.primary {
+        max-width: 168px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .hero-inner, .split, .grid.two, .grid.three, .grid.four, .detail-grid, .public-rail, .timeline-item, .copy-row, .capability-ledger, .capability-list { grid-template-columns: 1fr; }
       .hero:has(> .hero-copy) {
         grid-template-columns: 1fr;
