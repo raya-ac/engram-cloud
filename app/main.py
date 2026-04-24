@@ -848,13 +848,13 @@ def public_manifest() -> dict:
 
 CHANGELOG_ENTRIES = [
     {
-        "version": "Visual system overhaul",
+        "version": "Editorial visual reset",
         "date": "2026-04-24",
         "changes": [
-            "Reworked the shared public UI around a full-bleed hero, glass navigation, stronger typography, and a sharper infrastructure-console visual system.",
-            "Added more deliberate motion, hover states, illuminated code blocks, and orbital memory visuals across inherited pages.",
-            "Updated the landing, docs, agent, connect, API, and workspace surfaces to feel like one cohesive product instead of separate template pages.",
-            "Kept the free hosted-service positioning while making the connection kit and API setup paths more prominent.",
+            "Replaced the glow-heavy dark treatment with a calmer editorial product system: ivory surface, black ink, restrained borders, and less decorative noise.",
+            "Reworked the shared navigation, hero, badges, forms, code blocks, and diagram panels so inherited pages feel more deliberate.",
+            "Tightened the homepage headline and connection-kit positioning around concrete hosted-memory infrastructure.",
+            "Kept the service free positioning while making the public site look closer to a serious developer product.",
         ],
     },
     {
