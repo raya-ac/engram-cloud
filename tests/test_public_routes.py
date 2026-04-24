@@ -33,7 +33,23 @@ def test_public_service_metadata_routes():
     assert service_status.json()["features"] >= 20
     assert service_status.json()["capabilities"] >= 100
     assert service_status.json()["mcp_tools"] >= 50
+    assert service_status.json()["tool_groups"] >= 6
+    assert service_status.json()["recipes"] >= 10
     assert "runtime_cache" in service_status.json()
+
+    manifest = client.get("/api/service/manifest")
+    assert manifest.status_code == 200
+    assert manifest.json()["counts"]["capabilities"] >= 150
+    assert manifest.json()["routes"]["mcp_manifest"].endswith("/api/mcp/manifest")
+
+    capabilities = client.get("/api/capabilities")
+    assert capabilities.status_code == 200
+    assert any(group["name"] == "Discovery APIs" for group in capabilities.json()["capability_groups"])
+
+    mcp_manifest = client.get("/api/mcp/manifest")
+    assert mcp_manifest.status_code == 200
+    assert mcp_manifest.json()["transport"] == "http-json"
+    assert any(group["name"] == "Retrieval" for group in mcp_manifest.json()["tool_groups"])
 
     robots = client.get("/robots.txt")
     assert robots.status_code == 200
@@ -41,6 +57,7 @@ def test_public_service_metadata_routes():
 
     sitemap = client.get("/sitemap.xml")
     assert sitemap.status_code == 200
+    assert "/api/mcp/manifest" in sitemap.text
     assert "/capabilities" in sitemap.text
     assert "/examples" in sitemap.text
     assert "/security" in sitemap.text

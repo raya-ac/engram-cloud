@@ -98,6 +98,23 @@
 
 <section class="section-title fade-reveal">
   <div>
+    <h2>Tool groups</h2>
+    <p class="subtle">The MCP manifest groups tools so clients can show retrieval, graph, continuity, and curation as separate lanes.</p>
+  </div>
+  <a href="/api/mcp/manifest" class="button">MCP manifest</a>
+</section>
+
+<section class="grid three fade-reveal">
+  {% for group in tool_groups %}
+  <div class="surface-block">
+    <h3>{{ group.name }}</h3>
+    <p class="subtle">{{ group.tools|length }} tools</p>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
     <h2>Starter skills</h2>
     <p class="subtle">Small, deliberate instructions that help agents use hosted memory well from the first run.</p>
   </div>

@@ -13,7 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import false, func, select
 from sqlalchemy import delete
 
-from app.agent_catalog import STARTER_SKILLS, SUPPORTED_TOOLS, render_skill_markdown, starter_skill_list
+from app.agent_catalog import STARTER_SKILLS, SUPPORTED_TOOLS, grouped_tool_list, render_skill_markdown, starter_skill_list
 from app.auth import current_user_id, login_required, oauth
 from app.config import settings
 from app.db import Base, SessionLocal, engine
@@ -112,6 +112,46 @@ INTEGRATION_RECIPES = [
         "name": "Usage monitor",
         "steps": ["Poll usage endpoint", "Group by route", "Rotate quiet or noisy keys"],
         "command": "curl -H \"Authorization: Bearer $MEMORYLAYER_KEY\" \"$MEMORYLAYER_URL/api/workspaces/$SLUG/usage\"",
+    },
+    {
+        "name": "Compact prompt context",
+        "steps": ["Call MCP bridge", "Fetch recall_context", "Inject result"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"tool\":\"recall_context\",\"args\":{\"query\":\"current project state\",\"max_tokens\":1200}}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp\"",
+    },
+    {
+        "name": "Session checkpoint",
+        "steps": ["Summarize work", "Save checkpoint", "Resume later"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"tool\":\"session_checkpoint\",\"args\":{\"note\":\"Finished deploy; next check onboarding flow\",\"limit\":8}}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp\"",
+    },
+    {
+        "name": "Negative knowledge",
+        "steps": ["Catch bad assumption", "Store exclusion", "Prevent repeat"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"tool\":\"remember_negative\",\"args\":{\"content\":\"Do not use local SQLite for production memory\",\"scope\":\"deployment\",\"context\":\"Postgres is required for hosted workspaces\"}}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp\"",
+    },
+    {
+        "name": "Entity pivot",
+        "steps": ["Find entity", "Load graph", "Follow related work"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"tool\":\"entity_graph\",\"args\":{\"name\":\"Memorylayer\"}}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp\"",
+    },
+    {
+        "name": "Curation pass",
+        "steps": ["Find duplicate cluster", "Deduplicate", "Check quality"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"tool\":\"dedup\",\"args\":{\"threshold\":0.92,\"max_merges\":5}}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp\"",
+    },
+    {
+        "name": "Tool manifest",
+        "steps": ["Fetch manifest", "Group tools", "Render client UI"],
+        "command": "curl \"$MEMORYLAYER_URL/api/mcp/manifest\"",
+    },
+    {
+        "name": "Public capability sync",
+        "steps": ["Fetch capabilities", "Cache counts", "Expose service map"],
+        "command": "curl \"$MEMORYLAYER_URL/api/capabilities\"",
+    },
+    {
+        "name": "Workspace health check",
+        "steps": ["Call health", "Read memory map", "Export recent"],
+        "command": "curl -X POST -H \"Authorization: Bearer $MEMORYLAYER_KEY\" -H \"Content-Type: application/json\" -d '{\"tool\":\"health\",\"args\":{}}' \"$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp\"",
     },
 ]
 
@@ -297,11 +337,101 @@ CAPABILITY_GROUPS = [
             "proprietary license page",
         ],
     },
+    {
+        "name": "Discovery APIs",
+        "items": [
+            "capabilities JSON",
+            "MCP manifest JSON",
+            "service manifest JSON",
+            "tool category groups",
+            "recipe discovery",
+            "skill discovery",
+            "public OpenAPI link",
+            "machine-readable counts",
+            "public route catalog",
+            "agent bootstrap map",
+        ],
+    },
+    {
+        "name": "Client UX",
+        "items": [
+            "capability ledger",
+            "tool group sections",
+            "copyable curl blocks",
+            "environment setup block",
+            "recipe playbooks",
+            "minimal nav",
+            "responsive capability lists",
+            "scan-friendly tables",
+            "plain language docs",
+            "free-service messaging",
+        ],
+    },
+    {
+        "name": "Agent safety",
+        "items": [
+            "workspace-scoped auth",
+            "no public memory calls",
+            "explicit argument hints",
+            "curation tools documented",
+            "negative knowledge capture",
+            "audit on bridge calls",
+            "usage trail on bridge calls",
+            "revocable keys",
+            "soft-delete memory path",
+            "status history lookup",
+        ],
+    },
+    {
+        "name": "Operator workflows",
+        "items": [
+            "health check recipe",
+            "curation recipe",
+            "entity pivot recipe",
+            "checkpoint recipe",
+            "compact context recipe",
+            "capability sync recipe",
+            "tool manifest recipe",
+            "usage monitor recipe",
+            "ingestion recipe",
+            "handoff recipe",
+        ],
+    },
 ]
 
 
 def capability_count() -> int:
     return sum(len(group["items"]) for group in CAPABILITY_GROUPS)
+
+
+def public_manifest() -> dict:
+    return {
+        "service": "memorylayer",
+        "name": "Memorylayer",
+        "runtime": "vps",
+        "database": "postgres",
+        "base_url": settings.base_url,
+        "routes": {
+            "home": f"{settings.base_url}/",
+            "docs": f"{settings.base_url}/docs",
+            "agents": f"{settings.base_url}/agents",
+            "capabilities": f"{settings.base_url}/capabilities",
+            "examples": f"{settings.base_url}/examples",
+            "status": f"{settings.base_url}/status",
+            "openapi": f"{settings.base_url}/openapi.json",
+            "service_status": f"{settings.base_url}/api/service/status",
+            "capabilities_json": f"{settings.base_url}/api/capabilities",
+            "mcp_manifest": f"{settings.base_url}/api/mcp/manifest",
+        },
+        "counts": {
+            "features": len(SERVICE_FEATURES),
+            "capabilities": capability_count(),
+            "mcp_tools": len(SUPPORTED_TOOLS),
+            "tool_groups": len(grouped_tool_list()),
+            "recipes": len(INTEGRATION_RECIPES),
+            "skills": len(STARTER_SKILLS),
+        },
+    }
 
 
 CHANGELOG_ENTRIES = [
@@ -735,6 +865,7 @@ async def home(request: Request):
         features=SERVICE_FEATURES,
         recipes=INTEGRATION_RECIPES,
         tools=SUPPORTED_TOOLS,
+        tool_groups=grouped_tool_list(),
         capability_groups=CAPABILITY_GROUPS,
         capability_count=capability_count(),
     )
@@ -748,6 +879,7 @@ async def agents_page(request: Request):
         skills=starter_skill_list(),
         recipes=INTEGRATION_RECIPES,
         tools=SUPPORTED_TOOLS,
+        tool_groups=grouped_tool_list(),
         capability_groups=CAPABILITY_GROUPS,
         capability_count=capability_count(),
     )
@@ -765,6 +897,7 @@ async def docs_page(request: Request):
         "docs.html",
         skills=starter_skill_list(),
         tools=SUPPORTED_TOOLS,
+        tool_groups=grouped_tool_list(),
         features=SERVICE_FEATURES,
         recipes=INTEGRATION_RECIPES,
         capability_groups=CAPABILITY_GROUPS,
@@ -779,6 +912,7 @@ async def capabilities_page(request: Request):
         request,
         "capabilities.html",
         tools=SUPPORTED_TOOLS,
+        tool_groups=grouped_tool_list(),
         features=SERVICE_FEATURES,
         capability_groups=CAPABILITY_GROUPS,
         capability_count=capability_count(),
@@ -797,7 +931,7 @@ async def status_page(request: Request):
 
 @app.get("/examples", response_class=HTMLResponse)
 async def examples_page(request: Request):
-    return render(request, "examples.html", recipes=INTEGRATION_RECIPES)
+    return render(request, "examples.html", recipes=INTEGRATION_RECIPES, manifest=public_manifest())
 
 
 @app.get("/changelog", response_class=HTMLResponse)
@@ -816,8 +950,42 @@ async def api_service_status():
             "features": len(SERVICE_FEATURES),
             "capabilities": capability_count(),
             "mcp_tools": len(SUPPORTED_TOOLS),
+            "tool_groups": len(grouped_tool_list()),
+            "recipes": len(INTEGRATION_RECIPES),
             "base_url": settings.base_url,
             "runtime_cache": workspace_runtime_stats(),
+        }
+    )
+
+
+@app.get("/api/service/manifest")
+async def api_service_manifest():
+    return JSONResponse(public_manifest())
+
+
+@app.get("/api/capabilities")
+async def api_capabilities():
+    return JSONResponse(
+        {
+            **public_manifest(),
+            "capability_groups": CAPABILITY_GROUPS,
+            "features": SERVICE_FEATURES,
+            "recipes": INTEGRATION_RECIPES,
+        }
+    )
+
+
+@app.get("/api/mcp/manifest")
+async def api_mcp_manifest():
+    return JSONResponse(
+        {
+            **public_manifest(),
+            "transport": "http-json",
+            "workspace_call_url_template": f"{settings.base_url}/api/workspaces/{{slug}}/mcp",
+            "workspace_tools_url_template": f"{settings.base_url}/api/workspaces/{{slug}}/mcp/tools",
+            "auth": ["Authorization: Bearer <workspace-api-key>", "X-API-Key: <workspace-api-key>"],
+            "tool_groups": grouped_tool_list(),
+            "tools": SUPPORTED_TOOLS,
         }
     )
 
@@ -832,7 +1000,20 @@ async def robots_txt():
 
 @app.get("/sitemap.xml")
 async def sitemap_xml():
-    routes = ["", "agents", "docs", "capabilities", "examples", "security", "status", "changelog", "login"]
+    routes = [
+        "",
+        "agents",
+        "docs",
+        "capabilities",
+        "examples",
+        "security",
+        "status",
+        "changelog",
+        "login",
+        "api/service/manifest",
+        "api/capabilities",
+        "api/mcp/manifest",
+    ]
     body = "\n".join(
         f"  <url><loc>{settings.base_url}/{route}</loc></url>" if route else f"  <url><loc>{settings.base_url}/</loc></url>"
         for route in routes

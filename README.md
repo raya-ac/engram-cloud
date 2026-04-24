@@ -51,6 +51,7 @@ For the actual memory runtime, a VPS is the clean default.
 - workspace bootstrap endpoint for agents
 - hosted MCP-style bridge for retrieval, handoff, skills, curation, and memory health tools
 - public capability index with 100+ service, site, and agent-facing capabilities
+- public service, capability, and MCP manifests for clients and agent launchers
 - starter skill downloads in JSON and markdown
 - public docs, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
@@ -172,6 +173,9 @@ Public service metadata:
 - `GET /api/health`
 - `GET /api/service/status` including runtime cache metrics
 - `GET /capabilities` for the public capability index
+- `GET /api/service/manifest`
+- `GET /api/capabilities`
+- `GET /api/mcp/manifest`
 - `GET /robots.txt`
 - `GET /sitemap.xml`
 

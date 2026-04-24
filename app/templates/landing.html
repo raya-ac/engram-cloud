@@ -22,9 +22,9 @@
           <strong>Hosted runtime</strong>
           <p class="subtle">Long-lived Python service and Postgres, instead of forcing memory through a serverless shape.</p>
         </div>
-        <div>
-          <strong>Agent bootstrap</strong>
-          <p class="subtle">Every workspace exposes API URLs, tool discovery, and starter skills for plug-and-play setup.</p>
+      <div>
+        <strong>Agent bootstrap</strong>
+        <p class="subtle">Every workspace exposes API URLs, tool discovery, and starter skills for plug-and-play setup.</p>
         </div>
         <div>
           <strong>Free for now</strong>
@@ -87,6 +87,32 @@
   <div class="surface-block">
     <div class="stat">0</div>
     <p class="subtle">pricing tiers; the service is free while it hardens</p>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Machine-readable setup</h2>
+    <p class="subtle">Clients can discover the public service map, full capability ledger, and MCP tool groups through JSON.</p>
+  </div>
+  <a href="/api/service/manifest" class="button">Service manifest</a>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block">
+    <h3>Capability JSON</h3>
+    <p><code>/api/capabilities</code></p>
+    <p class="subtle">Full feature ledger, recipes, and public counts.</p>
+  </div>
+  <div class="surface-block">
+    <h3>MCP manifest</h3>
+    <p><code>/api/mcp/manifest</code></p>
+    <p class="subtle">Grouped bridge tools, auth shape, and URL templates.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Service manifest</h3>
+    <p><code>/api/service/manifest</code></p>
+    <p class="subtle">Routes and metadata for agent launchers.</p>
   </div>
 </section>
 

@@ -18,8 +18,8 @@
           <p class="subtle">capabilities tracked across service, site, and agent surfaces</p>
         </div>
         <div>
-          <strong>{{ tools|length }}</strong>
-          <p class="subtle">hosted MCP bridge tools with argument hints</p>
+          <strong>{{ tool_groups|length }}</strong>
+          <p class="subtle">tool groups covering retrieval, graph, continuity, and curation</p>
         </div>
         <div>
           <strong>{{ features|length }}</strong>
@@ -71,16 +71,45 @@
 
 <section class="section-title fade-reveal">
   <div>
-    <h2>MCP tools</h2>
-    <p class="subtle">The bridge returns this metadata from `/api/workspaces/{slug}/mcp/tools`.</p>
+    <h2>Discovery endpoints</h2>
+    <p class="subtle">These public JSON routes let clients build setup screens and tool pickers without scraping HTML.</p>
   </div>
 </section>
 
 <section class="grid three fade-reveal">
-  {% for tool in tools %}
   <div class="surface-block">
-    <h3>{{ tool.name }}</h3>
-    <p>{{ tool.summary }}</p>
+    <h3>Service manifest</h3>
+    <p><code>/api/service/manifest</code></p>
+    <p class="subtle">Routes, counts, service metadata, and public entry points.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Capability JSON</h3>
+    <p><code>/api/capabilities</code></p>
+    <p class="subtle">The full capability ledger, features, and recipe catalog.</p>
+  </div>
+  <div class="surface-block">
+    <h3>MCP manifest</h3>
+    <p><code>/api/mcp/manifest</code></p>
+    <p class="subtle">Tool groups, arguments, auth shape, and workspace URL templates.</p>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>MCP tool groups</h2>
+    <p class="subtle">The bridge is grouped so agents can pick the right class of operation before selecting a tool.</p>
+  </div>
+</section>
+
+<section class="capability-ledger fade-reveal">
+  {% for group in tool_groups %}
+  <div class="capability-group">
+    <h3>{{ group.name }}</h3>
+    <ul class="capability-list">
+      {% for tool in group.tools %}
+      <li>{{ tool.name }}</li>
+      {% endfor %}
+    </ul>
   </div>
   {% endfor %}
 </section>

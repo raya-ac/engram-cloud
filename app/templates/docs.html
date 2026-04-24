@@ -47,6 +47,31 @@
 
 <section class="section-title fade-reveal">
   <div>
+    <h2>Public discovery</h2>
+    <p class="subtle">These endpoints are intentionally unauthenticated because they describe the service, not a workspace's private memory.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block">
+    <h3>Service manifest</h3>
+    <p><code>GET /api/service/manifest</code></p>
+    <p class="subtle">Public route map, counts, and service metadata.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Capabilities</h3>
+    <p><code>GET /api/capabilities</code></p>
+    <p class="subtle">Capability groups, features, and recipe definitions.</p>
+  </div>
+  <div class="surface-block">
+    <h3>MCP manifest</h3>
+    <p><code>GET /api/mcp/manifest</code></p>
+    <p class="subtle">Tool groups, argument hints, auth headers, and workspace URL templates.</p>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
     <h2>Authentication</h2>
     <p class="subtle">All workspace API routes accept a workspace key in either `Authorization: Bearer` or `X-API-Key`.</p>
   </div>
@@ -173,6 +198,22 @@ X-API-Key: engram_...</div>
     <h2>Bridge tools</h2>
     <p class="subtle">The hosted bridge exposes the agent-safe Engram surface: retrieval, handoff, skill selection, curation, and workspace health.</p>
   </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Bridge groups</h2>
+    <p class="subtle">Tool groups are included in the public MCP manifest and the workspace tool discovery response.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  {% for group in tool_groups %}
+  <div class="surface-block">
+    <h3>{{ group.name }}</h3>
+    <p class="subtle">{{ group.tools|length }} tools</p>
+  </div>
+  {% endfor %}
 </section>
 
 <section class="grid three fade-reveal">

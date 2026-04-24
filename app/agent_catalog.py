@@ -307,6 +307,82 @@ SUPPORTED_TOOLS = [
 ]
 
 
+TOOL_GROUPS = [
+    {
+        "name": "Runtime health",
+        "tools": ["status", "health", "memory_map", "quality_metrics", "count_by", "access_patterns", "reranker_status"],
+    },
+    {
+        "name": "Retrieval",
+        "tools": [
+            "recall",
+            "recall_context",
+            "recall_hints",
+            "recall_recent",
+            "recall_by_type",
+            "recall_layer",
+            "recall_timeline",
+            "recall_related",
+            "recall_explain",
+            "compress",
+        ],
+    },
+    {
+        "name": "Entity graph",
+        "tools": [
+            "recall_entity",
+            "search_entities",
+            "entity_graph",
+            "entity_timeline",
+            "backlinks",
+            "find_similar",
+            "update_entity",
+            "merge_entities",
+            "link_memories",
+            "detect_communities",
+        ],
+    },
+    {
+        "name": "Memory writes",
+        "tools": [
+            "remember",
+            "remember_decision",
+            "remember_error",
+            "remember_interaction",
+            "remember_negative",
+            "remember_project",
+            "diary_read",
+            "diary_write",
+        ],
+    },
+    {
+        "name": "Continuity",
+        "tools": ["focus_brief", "layers", "get_skills", "session_checkpoint", "session_handoff", "resume_context", "session_summary"],
+    },
+    {
+        "name": "Curation",
+        "tools": [
+            "annotate",
+            "edit_memory",
+            "invalidate",
+            "update_status",
+            "status_history",
+            "tag",
+            "pin",
+            "unpin",
+            "forget",
+            "promote",
+            "demote",
+            "batch_tag",
+            "dedup",
+            "consolidate",
+            "extract_patterns",
+            "export",
+        ],
+    },
+]
+
+
 STARTER_SKILLS = {
     "workspace-memory": {
         "name": "workspace-memory",
@@ -374,6 +450,17 @@ def starter_skill_list() -> list[dict]:
     return [
         {"name": skill["name"], "title": skill["title"], "summary": skill["summary"]}
         for skill in STARTER_SKILLS.values()
+    ]
+
+
+def grouped_tool_list() -> list[dict]:
+    tools_by_name = {tool["name"]: tool for tool in SUPPORTED_TOOLS}
+    return [
+        {
+            "name": group["name"],
+            "tools": [tools_by_name[tool_name] for tool_name in group["tools"] if tool_name in tools_by_name],
+        }
+        for group in TOOL_GROUPS
     ]
 
 

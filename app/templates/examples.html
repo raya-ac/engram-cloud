@@ -61,4 +61,37 @@ export SLUG="your-workspace"
 export MEMORYLAYER_KEY="engram_..."</div>
   <button class="button copy-button" data-copy="#example-env" type="button">Copy</button>
 </div>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Discovery URLs</h2>
+    <p class="subtle">Use these to build a client setup screen or agent launcher without hardcoding the service map.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block">
+    <h3>Manifest</h3>
+    <div class="copy-row">
+      <div class="code-block" id="example-manifest">curl "{{ manifest.routes.service_status }}"
+curl "{{ manifest.routes.openapi }}"
+curl "{{ manifest.routes.service_manifest }}"</div>
+      <button class="button copy-button" data-copy="#example-manifest" type="button">Copy</button>
+    </div>
+  </div>
+  <div class="surface-block">
+    <h3>Capabilities</h3>
+    <div class="copy-row">
+      <div class="code-block" id="example-capabilities">curl "{{ manifest.routes.capabilities_json }}"</div>
+      <button class="button copy-button" data-copy="#example-capabilities" type="button">Copy</button>
+    </div>
+  </div>
+  <div class="surface-block">
+    <h3>MCP manifest</h3>
+    <div class="copy-row">
+      <div class="code-block" id="example-mcp-manifest">curl "{{ manifest.routes.mcp_manifest }}"</div>
+      <button class="button copy-button" data-copy="#example-mcp-manifest" type="button">Copy</button>
+    </div>
+  </div>
+</section>
 {% endblock %}
