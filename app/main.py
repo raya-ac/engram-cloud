@@ -565,6 +565,182 @@ CAPABILITY_GROUPS = [
             "OpenAPI path",
         ],
     },
+    {
+        "name": "API examples",
+        "items": [
+            "example catalog page",
+            "example JSON endpoint",
+            "public route examples",
+            "workspace route examples",
+            "bridge call examples",
+            "ingest examples",
+            "usage examples",
+            "export examples",
+            "auth examples",
+            "copyable fixture blocks",
+        ],
+    },
+    {
+        "name": "Response fixtures",
+        "items": [
+            "service status fixture",
+            "bootstrap fixture",
+            "recall fixture",
+            "checkpoint fixture",
+            "ingest fixture",
+            "usage fixture",
+            "MCP manifest fixture",
+            "capability fixture",
+            "recent export fixture",
+            "error shape fixture",
+        ],
+    },
+    {
+        "name": "Playground UX",
+        "items": [
+            "method labels",
+            "auth labels",
+            "request body preview",
+            "response body preview",
+            "workspace slug placeholders",
+            "environment assumptions",
+            "API explorer nav item",
+            "docs cross-link",
+            "examples cross-link",
+            "client implementation guide",
+        ],
+    },
+]
+
+
+API_EXAMPLES = [
+    {
+        "name": "Service status",
+        "method": "GET",
+        "path": "/api/service/status",
+        "auth": "public",
+        "summary": "Check whether the hosted service is alive and read public counts.",
+        "request": None,
+        "response": {
+            "status": "ok",
+            "service": "memorylayer",
+            "runtime": "vps",
+            "database": "postgres",
+            "features": 29,
+            "capabilities": 230,
+            "mcp_tools": 60,
+        },
+    },
+    {
+        "name": "Service manifest",
+        "method": "GET",
+        "path": "/api/service/manifest",
+        "auth": "public",
+        "summary": "Load the route map and public integration counts for client setup screens.",
+        "request": None,
+        "response": {
+            "service": "memorylayer",
+            "routes": {
+                "docs": "https://memorylayer.run/docs",
+                "api_examples": "https://memorylayer.run/api/examples",
+                "mcp_manifest": "https://memorylayer.run/api/mcp/manifest",
+            },
+            "counts": {"capabilities": 230, "api_examples": 10},
+        },
+    },
+    {
+        "name": "MCP manifest",
+        "method": "GET",
+        "path": "/api/mcp/manifest",
+        "auth": "public",
+        "summary": "Discover grouped tools, auth headers, and workspace bridge URL templates.",
+        "request": None,
+        "response": {
+            "transport": "http-json",
+            "workspace_call_url_template": "https://memorylayer.run/api/workspaces/{slug}/mcp",
+            "auth": ["Authorization: Bearer <workspace-api-key>", "X-API-Key: <workspace-api-key>"],
+            "tool_groups": [{"name": "Retrieval", "tools": [{"name": "recall_context"}]}],
+        },
+    },
+    {
+        "name": "Workspace bootstrap",
+        "method": "GET",
+        "path": "/api/workspaces/{slug}/bootstrap",
+        "auth": "workspace key",
+        "summary": "Fetch workspace-specific URLs, headers, starter skills, and tool discovery.",
+        "request": None,
+        "response": {
+            "workspace": {"slug": "demo"},
+            "auth": {"headers": ["Authorization: Bearer <workspace-api-key>", "X-API-Key: <workspace-api-key>"]},
+            "endpoints": {"mcp": "https://memorylayer.run/api/workspaces/demo/mcp"},
+            "skills": [{"name": "workspace-memory"}],
+        },
+    },
+    {
+        "name": "Recall context",
+        "method": "POST",
+        "path": "/api/workspaces/{slug}/mcp",
+        "auth": "workspace key",
+        "summary": "Ask the bridge for compact context before an agent starts work.",
+        "request": {"tool": "recall_context", "args": {"query": "current project state", "max_tokens": 1200}},
+        "response": {"ok": True, "tool": "recall_context", "result": "Relevant memory context..."},
+    },
+    {
+        "name": "Session checkpoint",
+        "method": "POST",
+        "path": "/api/workspaces/{slug}/mcp",
+        "auth": "workspace key",
+        "summary": "Save a compact handoff after meaningful work or deployment.",
+        "request": {"tool": "session_checkpoint", "args": {"note": "Shipped API explorer", "limit": 8}},
+        "response": {"ok": True, "tool": "session_checkpoint", "result": {"saved": True}},
+    },
+    {
+        "name": "Batch ingest",
+        "method": "POST",
+        "path": "/api/workspaces/{slug}/ingest",
+        "auth": "workspace key",
+        "summary": "Import notes, transcripts, reports, or pipeline output as memories.",
+        "request": {
+            "source_name": "handoff.md",
+            "source_type": "handoff",
+            "items": ["Release deployed", "Next: test onboarding"],
+            "memory_type": "fact",
+        },
+        "response": {"ok": True, "run": {"source_name": "handoff.md", "items": 2}, "memory_ids": ["mem_1", "mem_2"]},
+    },
+    {
+        "name": "Usage feed",
+        "method": "GET",
+        "path": "/api/workspaces/{slug}/usage",
+        "auth": "workspace key",
+        "summary": "Read recent API calls, per-route totals, and key activity.",
+        "request": None,
+        "response": {
+            "route_counts": [{"route": "/api/workspaces/demo/mcp", "count": 14}],
+            "recent_events": [{"route": "/api/workspaces/demo/mcp", "status_code": 200}],
+        },
+    },
+    {
+        "name": "Recent export",
+        "method": "GET",
+        "path": "/api/workspaces/{slug}/export/recent",
+        "auth": "workspace key",
+        "summary": "Export the latest workspace memories for backup, inspection, or migration checks.",
+        "request": None,
+        "response": {
+            "workspace": "demo",
+            "memories": [{"content": "API explorer deployed", "memory_type": "fact", "layer": "episodic"}],
+        },
+    },
+    {
+        "name": "Error shape",
+        "method": "POST",
+        "path": "/api/workspaces/{slug}/mcp",
+        "auth": "workspace key",
+        "summary": "All service errors return a direct detail message that clients can show or log.",
+        "request": {"tool": "unknown_tool", "args": {}},
+        "response": {"detail": "Unsupported tool: unknown_tool"},
+    },
 ]
 
 
@@ -585,6 +761,7 @@ def public_manifest() -> dict:
             "agents": f"{settings.base_url}/agents",
             "capabilities": f"{settings.base_url}/capabilities",
             "examples": f"{settings.base_url}/examples",
+            "api_explorer": f"{settings.base_url}/api-explorer",
             "sdks": f"{settings.base_url}/sdks",
             "status": f"{settings.base_url}/status",
             "openapi": f"{settings.base_url}/openapi.json",
@@ -593,6 +770,7 @@ def public_manifest() -> dict:
             "mcp_manifest": f"{settings.base_url}/api/mcp/manifest",
             "sdk_snippets": f"{settings.base_url}/api/sdk-snippets",
             "playbooks": f"{settings.base_url}/api/playbooks",
+            "api_examples": f"{settings.base_url}/api/examples",
         },
         "counts": {
             "features": len(SERVICE_FEATURES),
@@ -602,6 +780,7 @@ def public_manifest() -> dict:
             "recipes": len(INTEGRATION_RECIPES),
             "sdk_snippets": len(SDK_SNIPPETS),
             "playbooks": len(PLAYBOOKS),
+            "api_examples": len(API_EXAMPLES),
             "skills": len(STARTER_SKILLS),
         },
     }
@@ -1043,6 +1222,7 @@ async def home(request: Request):
         capability_count=capability_count(),
         sdk_snippets=SDK_SNIPPETS,
         playbooks=PLAYBOOKS,
+        api_examples=API_EXAMPLES,
     )
 
 
@@ -1059,6 +1239,7 @@ async def agents_page(request: Request):
         capability_count=capability_count(),
         sdk_snippets=SDK_SNIPPETS,
         playbooks=PLAYBOOKS,
+        api_examples=API_EXAMPLES,
     )
 
 
@@ -1081,6 +1262,7 @@ async def docs_page(request: Request):
         capability_count=capability_count(),
         sdk_snippets=SDK_SNIPPETS,
         playbooks=PLAYBOOKS,
+        api_examples=API_EXAMPLES,
         openapi_url=f"{settings.base_url}/openapi.json",
     )
 
@@ -1097,6 +1279,7 @@ async def capabilities_page(request: Request):
         capability_count=capability_count(),
         sdk_snippets=SDK_SNIPPETS,
         playbooks=PLAYBOOKS,
+        api_examples=API_EXAMPLES,
     )
 
 
@@ -1112,7 +1295,24 @@ async def status_page(request: Request):
 
 @app.get("/examples", response_class=HTMLResponse)
 async def examples_page(request: Request):
-    return render(request, "examples.html", recipes=INTEGRATION_RECIPES, manifest=public_manifest())
+    return render(
+        request,
+        "examples.html",
+        recipes=INTEGRATION_RECIPES,
+        manifest=public_manifest(),
+        api_examples=API_EXAMPLES,
+    )
+
+
+@app.get("/api-explorer", response_class=HTMLResponse)
+async def api_explorer_page(request: Request):
+    return render(
+        request,
+        "api_explorer.html",
+        examples=API_EXAMPLES,
+        manifest=public_manifest(),
+        openapi_url=f"{settings.base_url}/openapi.json",
+    )
 
 
 @app.get("/sdks", response_class=HTMLResponse)
@@ -1146,6 +1346,7 @@ async def api_service_status():
             "recipes": len(INTEGRATION_RECIPES),
             "sdk_snippets": len(SDK_SNIPPETS),
             "playbooks": len(PLAYBOOKS),
+            "api_examples": len(API_EXAMPLES),
             "base_url": settings.base_url,
             "runtime_cache": workspace_runtime_stats(),
         }
@@ -1167,6 +1368,7 @@ async def api_capabilities():
             "recipes": INTEGRATION_RECIPES,
             "sdk_snippets": SDK_SNIPPETS,
             "playbooks": PLAYBOOKS,
+            "api_examples": API_EXAMPLES,
         }
     )
 
@@ -1179,6 +1381,11 @@ async def api_sdk_snippets():
 @app.get("/api/playbooks")
 async def api_playbooks():
     return JSONResponse({**public_manifest(), "playbooks": PLAYBOOKS})
+
+
+@app.get("/api/examples")
+async def api_examples():
+    return JSONResponse({**public_manifest(), "api_examples": API_EXAMPLES})
 
 
 @app.get("/api/mcp/manifest")
@@ -1212,6 +1419,7 @@ async def sitemap_xml():
         "docs",
         "capabilities",
         "examples",
+        "api-explorer",
         "sdks",
         "security",
         "status",
@@ -1222,6 +1430,7 @@ async def sitemap_xml():
         "api/mcp/manifest",
         "api/sdk-snippets",
         "api/playbooks",
+        "api/examples",
     ]
     body = "\n".join(
         f"  <url><loc>{settings.base_url}/{route}</loc></url>" if route else f"  <url><loc>{settings.base_url}/</loc></url>"

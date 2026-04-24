@@ -8,6 +8,7 @@
     <p>Use these snippets to connect an agent, ingestion job, or monitoring script to a hosted Memorylayer workspace.</p>
     <div class="nav" style="margin-top:18px">
       <a href="/docs" class="button">Read docs</a>
+      <a href="/api-explorer" class="button">API explorer</a>
       <a href="/sdks" class="button">SDK snippets</a>
       <a href="/login/github" class="button primary">Create workspace</a>
     </div>
@@ -94,5 +95,33 @@ curl "{{ manifest.routes.service_manifest }}"</div>
       <button class="button copy-button" data-copy="#example-mcp-manifest" type="button">Copy</button>
     </div>
   </div>
+  <div class="surface-block">
+    <h3>API fixtures</h3>
+    <div class="copy-row">
+      <div class="code-block" id="example-api-fixtures">curl "{{ manifest.routes.api_examples }}"</div>
+      <button class="button copy-button" data-copy="#example-api-fixtures" type="button">Copy</button>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Request and response shapes</h2>
+    <p class="subtle">A shorter preview of the API explorer fixtures.</p>
+  </div>
+</section>
+
+<section class="grid two fade-reveal">
+  {% for example in api_examples[:4] %}
+  <div class="surface-block">
+    <div class="badge-row">
+      <span class="badge">{{ example.method }}</span>
+      <span class="badge">{{ example.auth }}</span>
+    </div>
+    <h3>{{ example.name }}</h3>
+    <p><code>{{ example.path }}</code></p>
+    <p class="subtle">{{ example.summary }}</p>
+  </div>
+  {% endfor %}
 </section>
 {% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}API Explorer · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">API explorer</div>
+      <h2>Know the shape before you wire it.</h2>
+      <p>Memorylayer exposes plain HTTP endpoints for service discovery, workspace memory, ingestion, and the hosted MCP bridge. These fixtures show the contract without needing a live key.</p>
+      <div class="nav" style="margin-top:18px">
+        <a href="/api/examples" class="button">Fixture JSON</a>
+        <a href="{{ openapi_url }}" class="button">OpenAPI</a>
+        <a href="/login/github" class="button primary">Create workspace</a>
+      </div>
+      <div class="public-rail">
+        <div>
+          <strong>{{ examples|length }}</strong>
+          <p class="subtle">request and response fixtures</p>
+        </div>
+        <div>
+          <strong>2</strong>
+          <p class="subtle">auth modes: public discovery and workspace key</p>
+        </div>
+        <div>
+          <strong>HTTP</strong>
+          <p class="subtle">no required vendor SDK or local daemon</p>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>discover</span>
+        <span>ingest</span>
+        <span>recall</span>
+        <span>handoff</span>
+      </div>
+      <div class="signal-stack">
+        <div class="signal-line"><strong>Public</strong><span>Manifest, capabilities, examples, and MCP tool catalog.</span></div>
+        <div class="signal-line"><strong>Private</strong><span>Workspace memory routes require a workspace API key.</span></div>
+        <div class="signal-line"><strong>Bridge</strong><span>Use { tool, args } for the hosted MCP-compatible call path.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Request fixtures</h2>
+    <p class="subtle">These examples are stable enough for docs, generated clients, and agent setup screens.</p>
+  </div>
+  <a href="/api/examples" class="button">Use JSON</a>
+</section>
+
+<section class="section-stack">
+  {% for example in examples %}
+  <div class="detail-block fade-reveal">
+    <div class="detail-grid">
+      <div>
+        <div class="badge-row">
+          <span class="badge">{{ example.method }}</span>
+          <span class="badge">{{ example.auth }}</span>
+        </div>
+        <h3>{{ example.name }}</h3>
+        <p class="subtle">{{ example.summary }}</p>
+        <p><code>{{ example.path }}</code></p>
+      </div>
+      <div class="grid two" style="gap:12px">
+        <div class="copy-row">
+          <div class="code-block" id="api-request-{{ loop.index }}">{% if example["request"] %}{{ example["request"] | tojson(indent=2) }}{% else %}No request body{% endif %}</div>
+          <button class="button copy-button" data-copy="#api-request-{{ loop.index }}" type="button">Copy</button>
+        </div>
+        <div class="copy-row">
+          <div class="code-block" id="api-response-{{ loop.index }}">{{ example["response"] | tojson(indent=2) }}</div>
+          <button class="button copy-button" data-copy="#api-response-{{ loop.index }}" type="button">Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Client rule</h2>
+    <p class="subtle">Start with `/api/service/manifest`, then choose either direct workspace routes or the MCP bridge. Keep workspace keys server-side when possible.</p>
+  </div>
+</section>
+{% endblock %}

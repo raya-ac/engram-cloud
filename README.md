@@ -53,6 +53,7 @@ For the actual memory runtime, a VPS is the clean default.
 - public capability index with 100+ service, site, and agent-facing capabilities
 - public service, capability, and MCP manifests for clients and agent launchers
 - SDK snippet and playbook pages plus JSON endpoints
+- API explorer with request and response fixtures for client builders
 - starter skill downloads in JSON and markdown
 - public docs, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
@@ -85,6 +86,7 @@ Open:
 - [http://127.0.0.1:8090](http://127.0.0.1:8090)
 - [http://127.0.0.1:8090/docs](http://127.0.0.1:8090/docs)
 - [http://127.0.0.1:8090/examples](http://127.0.0.1:8090/examples)
+- [http://127.0.0.1:8090/api-explorer](http://127.0.0.1:8090/api-explorer)
 - [http://127.0.0.1:8090/sdks](http://127.0.0.1:8090/sdks)
 - [http://127.0.0.1:8090/security](http://127.0.0.1:8090/security)
 - [http://127.0.0.1:8090/status](http://127.0.0.1:8090/status)
@@ -180,6 +182,7 @@ Public service metadata:
 - `GET /api/mcp/manifest`
 - `GET /api/sdk-snippets`
 - `GET /api/playbooks`
+- `GET /api/examples`
 - `GET /robots.txt`
 - `GET /sitemap.xml`
 
