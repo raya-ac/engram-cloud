@@ -9,6 +9,7 @@
     <div class="nav" style="margin-top:18px">
       <a href="{{ openapi_url }}" class="button">OpenAPI</a>
       <a href="/api-explorer" class="button">API examples</a>
+      <a href="/connect" class="button">Connect guide</a>
       <a href="/agents" class="button">Agent setup</a>
       <a href="/capabilities" class="button">Capabilities</a>
       <a href="/login/github" class="button primary">Create a workspace</a>
@@ -121,6 +122,16 @@ X-API-Key: engram_...</div>
     <h3>Status</h3>
     <p><code>GET /api/workspaces/{slug}/status</code></p>
     <p class="subtle">Workspace memory counts and graph stats.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Connect config</h3>
+    <p><code>GET /api/workspaces/{slug}/connect</code></p>
+    <p class="subtle">Workspace-specific client profile with endpoints, startup calls, skills, and MCP config.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Env block</h3>
+    <p><code>GET /api/workspaces/{slug}/env</code></p>
+    <p class="subtle">Plain text environment variables for local agents and scripts.</p>
   </div>
   <div class="surface-block">
     <h3>Search</h3>

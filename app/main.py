@@ -89,6 +89,10 @@ SERVICE_FEATURES = [
     {"name": "Batch ingest API", "summary": "Push many memories in one authenticated request."},
     {"name": "Import run history", "summary": "Track source, type, item count, and actor for each ingestion run."},
     {"name": "Recent export", "summary": "Download recent workspace memories as JSON for inspection or backup."},
+    {"name": "Connection kits", "summary": "Generate workspace-specific client config, env blocks, and startup calls."},
+    {"name": "Agent config API", "summary": "Expose a normalized JSON profile that agents can read on boot."},
+    {"name": "Env template API", "summary": "Return a copyable .env block for local workers and agent launchers."},
+    {"name": "Connect page", "summary": "Document the shortest path from workspace key to working agent memory."},
 ]
 
 
@@ -610,6 +614,36 @@ CAPABILITY_GROUPS = [
             "client implementation guide",
         ],
     },
+    {
+        "name": "Connection kits",
+        "items": [
+            "workspace connect page",
+            "workspace config JSON",
+            ".env template endpoint",
+            "agent startup sequence",
+            "bootstrap command",
+            "recent memory command",
+            "checkpoint command",
+            "ingest command",
+            "health check command",
+            "copyable connection blocks",
+        ],
+    },
+    {
+        "name": "Agent configs",
+        "items": [
+            "service identity",
+            "workspace identity",
+            "base URL",
+            "workspace slug",
+            "auth header names",
+            "endpoint map",
+            "MCP transport",
+            "tool discovery URL",
+            "starter skill URLs",
+            "recommended first calls",
+        ],
+    },
 ]
 
 
@@ -645,7 +679,7 @@ API_EXAMPLES = [
                 "api_examples": "https://memorylayer.run/api/examples",
                 "mcp_manifest": "https://memorylayer.run/api/mcp/manifest",
             },
-            "counts": {"capabilities": 230, "api_examples": 10},
+            "counts": {"capabilities": 250, "api_examples": 12},
         },
     },
     {
@@ -674,6 +708,31 @@ API_EXAMPLES = [
             "auth": {"headers": ["Authorization: Bearer <workspace-api-key>", "X-API-Key: <workspace-api-key>"]},
             "endpoints": {"mcp": "https://memorylayer.run/api/workspaces/demo/mcp"},
             "skills": [{"name": "workspace-memory"}],
+        },
+    },
+    {
+        "name": "Connection kit",
+        "method": "GET",
+        "path": "/api/workspaces/{slug}/connect",
+        "auth": "workspace key",
+        "summary": "Return a normalized client profile with endpoints, MCP config, skills, and startup calls.",
+        "request": None,
+        "response": {
+            "service": {"name": "Memorylayer", "base_url": "https://memorylayer.run"},
+            "workspace": {"slug": "demo"},
+            "endpoints": {"mcp": "https://memorylayer.run/api/workspaces/demo/mcp"},
+            "startup_calls": [{"name": "bootstrap", "method": "GET"}],
+        },
+    },
+    {
+        "name": "Env template",
+        "method": "GET",
+        "path": "/api/workspaces/{slug}/env",
+        "auth": "workspace key",
+        "summary": "Return a plain text env block for local scripts, workers, and agent launchers.",
+        "request": None,
+        "response": {
+            "text": "MEMORYLAYER_URL=\"https://memorylayer.run\"\nMEMORYLAYER_WORKSPACE=\"demo\"\nMEMORYLAYER_KEY=\"engram_...\""
         },
     },
     {
@@ -759,6 +818,7 @@ def public_manifest() -> dict:
             "home": f"{settings.base_url}/",
             "docs": f"{settings.base_url}/docs",
             "agents": f"{settings.base_url}/agents",
+            "connect": f"{settings.base_url}/connect",
             "capabilities": f"{settings.base_url}/capabilities",
             "examples": f"{settings.base_url}/examples",
             "api_explorer": f"{settings.base_url}/api-explorer",
@@ -1158,7 +1218,87 @@ def _workspace_view_context(db, workspace: Workspace, search_results=None, searc
         "ingest_runs": _workspace_ingest_runs(db, workspace.id),
         "operator_summary": _workspace_operator_summary(db, workspace.id),
         "revealed_api_key": revealed_api_key,
+        "connection_kit": workspace_connection_kit(workspace, api_key_label="workspace key"),
     }
+
+
+def workspace_endpoint_map(workspace: Workspace) -> dict:
+    base = f"{settings.base_url}/api/workspaces/{workspace.slug}"
+    return {
+        "bootstrap": f"{base}/bootstrap",
+        "status": f"{base}/status",
+        "recent": f"{base}/memories/recent",
+        "search": f"{base}/search",
+        "remember": f"{base}/remember",
+        "ingest": f"{base}/ingest",
+        "ingest_runs": f"{base}/ingest/runs",
+        "export_recent": f"{base}/export/recent",
+        "usage": f"{base}/usage",
+        "audit": f"{base}/audit",
+        "mcp": f"{base}/mcp",
+        "mcp_tools": f"{base}/mcp/tools",
+    }
+
+
+def workspace_connection_kit(workspace: Workspace, api_key_label: str = "workspace key", token_hint: str = "engram_...") -> dict:
+    endpoints = workspace_endpoint_map(workspace)
+    return {
+        "service": {
+            "name": "Memorylayer",
+            "base_url": settings.base_url,
+            "docs_url": f"{settings.base_url}/docs",
+            "connect_url": f"{settings.base_url}/connect",
+            "openapi_url": f"{settings.base_url}/openapi.json",
+        },
+        "workspace": {
+            "name": workspace.name,
+            "slug": workspace.slug,
+            "schema_name": workspace.schema_name,
+        },
+        "auth": {
+            "api_key_label": api_key_label,
+            "headers": ["Authorization: Bearer <workspace-api-key>", "X-API-Key: <workspace-api-key>"],
+            "token_hint": token_hint,
+        },
+        "endpoints": endpoints,
+        "mcp": {
+            "transport": "http-json",
+            "call_url": endpoints["mcp"],
+            "tools_url": endpoints["mcp_tools"],
+            "manifest_url": f"{settings.base_url}/api/mcp/manifest",
+        },
+        "skills": [
+            {
+                "name": skill["name"],
+                "title": skill["title"],
+                "json_url": f"{settings.base_url}/api/skills/{skill['name']}",
+                "markdown_url": f"{settings.base_url}/api/skills/{skill['name']}.md",
+            }
+            for skill in starter_skill_list()
+        ],
+        "startup_calls": [
+            {"name": "bootstrap", "method": "GET", "url": endpoints["bootstrap"]},
+            {"name": "recent memory", "method": "GET", "url": f"{endpoints['recent']}?limit=8"},
+            {"name": "tool discovery", "method": "GET", "url": endpoints["mcp_tools"]},
+            {
+                "name": "compact context",
+                "method": "POST",
+                "url": endpoints["mcp"],
+                "body": {"tool": "recall_context", "args": {"query": "current task", "max_tokens": 1200}},
+            },
+        ],
+        "env": {
+            "MEMORYLAYER_URL": settings.base_url,
+            "MEMORYLAYER_WORKSPACE": workspace.slug,
+            "MEMORYLAYER_KEY": token_hint,
+            "MEMORYLAYER_MCP_URL": endpoints["mcp"],
+        },
+    }
+
+
+def render_workspace_env(workspace: Workspace, token_hint: str = "engram_...") -> str:
+    kit = workspace_connection_kit(workspace, token_hint=token_hint)
+    return "\n".join(f'{key}="{value}"' for key, value in kit["env"].items()) + "\n"
 
 
 def api_key_from_request(authorization: str | None, x_api_key: str | None) -> str | None:
@@ -1240,6 +1380,18 @@ async def agents_page(request: Request):
         sdk_snippets=SDK_SNIPPETS,
         playbooks=PLAYBOOKS,
         api_examples=API_EXAMPLES,
+    )
+
+
+@app.get("/connect", response_class=HTMLResponse)
+async def connect_page(request: Request):
+    return render(
+        request,
+        "connect.html",
+        tools=SUPPORTED_TOOLS,
+        tool_groups=grouped_tool_list(),
+        skills=starter_skill_list(),
+        openapi_url=f"{settings.base_url}/openapi.json",
     )
 
 
@@ -1416,6 +1568,7 @@ async def sitemap_xml():
     routes = [
         "",
         "agents",
+        "connect",
         "docs",
         "capabilities",
         "examples",
@@ -2124,22 +2277,25 @@ async def api_workspace_bootstrap(
             {
                 "workspace": workspace.slug,
                 "service": {
-                    "name": "Engram Cloud",
+                    "name": "Memorylayer",
                     "base_url": settings.base_url,
                     "mcp_bridge_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/mcp",
                     "docs_url": f"{settings.base_url}/docs",
+                    "connect_url": f"{settings.base_url}/connect",
                     "openapi_url": f"{settings.base_url}/openapi.json",
                 },
                 "api": {
-                    "status_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/status",
-                    "search_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/search",
-                    "remember_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/remember",
-                    "recent_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/memories/recent",
-                    "audit_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/audit",
-                    "usage_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/usage",
-                    "ingest_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/ingest",
-                    "ingest_runs_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/ingest/runs",
-                    "recent_export_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/export/recent",
+                    "status_url": workspace_endpoint_map(workspace)["status"],
+                    "search_url": workspace_endpoint_map(workspace)["search"],
+                    "remember_url": workspace_endpoint_map(workspace)["remember"],
+                    "recent_url": workspace_endpoint_map(workspace)["recent"],
+                    "audit_url": workspace_endpoint_map(workspace)["audit"],
+                    "usage_url": workspace_endpoint_map(workspace)["usage"],
+                    "ingest_url": workspace_endpoint_map(workspace)["ingest"],
+                    "ingest_runs_url": workspace_endpoint_map(workspace)["ingest_runs"],
+                    "recent_export_url": workspace_endpoint_map(workspace)["export_recent"],
+                    "connect_config_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/connect",
+                    "env_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/env",
                     "headers": base_headers,
                 },
                 "mcp": {
@@ -2159,6 +2315,41 @@ async def api_workspace_bootstrap(
                 ],
                 "api_key": {"label": api_key.label, "prefix": api_key.token_prefix},
             }
+        )
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/connect")
+async def api_workspace_connect(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/connect", "GET")
+        db.commit()
+        return JSONResponse(workspace_connection_kit(workspace, api_key_label=api_key.label, token_hint=f"{api_key.token_prefix}..."))
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/env")
+async def api_workspace_env(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        record_api_event(db, workspace.id, api_key.id, "/env", "GET")
+        db.commit()
+        return PlainTextResponse(
+            render_workspace_env(workspace, token_hint=f"{api_key.token_prefix}..."),
+            media_type="text/plain; charset=utf-8",
         )
     finally:
         db.close()

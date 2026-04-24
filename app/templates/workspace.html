@@ -63,6 +63,31 @@
     </div>
 
     <div class="card">
+      <h3>Connection kit</h3>
+      <p class="subtle" style="margin-bottom:12px">Use these after creating a workspace key. The JSON profile is designed for agent launchers; the env endpoint is for local scripts.</p>
+      <div class="list">
+        <div class="item">
+          <div>{{ connection_kit.endpoints.mcp }}</div>
+          <div class="meta"><span>mcp bridge</span><span>http-json</span></div>
+        </div>
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-connect-cmd">curl -H "Authorization: Bearer engram_..." "{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/connect"</div>
+            <button class="button copy-button" data-copy="#workspace-connect-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>client config json</span></div>
+        </div>
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-env-cmd">curl -H "Authorization: Bearer engram_..." "{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/env"</div>
+            <button class="button copy-button" data-copy="#workspace-env-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>env block</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <h3>Search memory</h3>
       <form method="post" action="/app/workspaces/{{ workspace.slug }}/search">
         <input type="text" name="query" value="{{ search_query or '' }}" placeholder="Search this workspace" required>
@@ -290,6 +315,14 @@
         <div class="item">
           <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/bootstrap</div>
           <div class="meta"><span>bootstrap</span><span>agent setup</span></div>
+        </div>
+        <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/connect</div>
+          <div class="meta"><span>connect</span><span>client config</span></div>
+        </div>
+        <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/env</div>
+          <div class="meta"><span>env</span><span>launcher variables</span></div>
         </div>
         <div class="item">
           <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/mcp</div>

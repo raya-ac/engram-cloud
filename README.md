@@ -54,6 +54,7 @@ For the actual memory runtime, a VPS is the clean default.
 - public service, capability, and MCP manifests for clients and agent launchers
 - SDK snippet and playbook pages plus JSON endpoints
 - API explorer with request and response fixtures for client builders
+- workspace connection kit endpoints for agent config JSON and `.env` generation
 - starter skill downloads in JSON and markdown
 - public docs, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
@@ -85,6 +86,7 @@ Open:
 
 - [http://127.0.0.1:8090](http://127.0.0.1:8090)
 - [http://127.0.0.1:8090/docs](http://127.0.0.1:8090/docs)
+- [http://127.0.0.1:8090/connect](http://127.0.0.1:8090/connect)
 - [http://127.0.0.1:8090/examples](http://127.0.0.1:8090/examples)
 - [http://127.0.0.1:8090/api-explorer](http://127.0.0.1:8090/api-explorer)
 - [http://127.0.0.1:8090/sdks](http://127.0.0.1:8090/sdks)
@@ -145,6 +147,8 @@ while the real Engram runtime lives on a VPS.
 Each workspace can expose:
 
 - `GET /api/workspaces/{slug}/bootstrap`
+- `GET /api/workspaces/{slug}/connect`
+- `GET /api/workspaces/{slug}/env`
 - `GET /api/workspaces/{slug}/status`
 - `GET /api/workspaces/{slug}/memories/recent`
 - `POST /api/workspaces/{slug}/search`

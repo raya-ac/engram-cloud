@@ -7,11 +7,16 @@ client = TestClient(app)
 
 
 def test_public_service_pages_render():
-    for path in ("/", "/agents", "/docs", "/capabilities", "/examples", "/api-explorer", "/sdks", "/security", "/status", "/changelog"):
+    for path in ("/", "/agents", "/connect", "/docs", "/capabilities", "/examples", "/api-explorer", "/sdks", "/security", "/status", "/changelog"):
         response = client.get(path)
         assert response.status_code == 200
+    connect = client.get("/connect")
+    assert "Give an agent a workspace in minutes" in connect.text
+    assert "/api/workspaces/{slug}/connect" in connect.text
     docs = client.get("/docs")
     assert "Plug agents into memory" in docs.text
+    assert "/api/workspaces/{slug}/connect" in docs.text
+    assert "/api/workspaces/{slug}/env" in docs.text
     assert "/api/workspaces/{slug}/usage" in docs.text
     assert "/api/workspaces/{slug}/ingest" in docs.text
     assert "/api/workspaces/{slug}/export/recent" in docs.text
@@ -37,19 +42,19 @@ def test_public_service_metadata_routes():
     service_status = client.get("/api/service/status")
     assert service_status.status_code == 200
     assert service_status.json()["service"] == "memorylayer"
-    assert service_status.json()["features"] >= 20
-    assert service_status.json()["capabilities"] >= 100
+    assert service_status.json()["features"] >= 30
+    assert service_status.json()["capabilities"] >= 240
     assert service_status.json()["mcp_tools"] >= 50
     assert service_status.json()["tool_groups"] >= 6
     assert service_status.json()["recipes"] >= 10
     assert service_status.json()["sdk_snippets"] >= 6
     assert service_status.json()["playbooks"] >= 5
-    assert service_status.json()["api_examples"] >= 10
+    assert service_status.json()["api_examples"] >= 12
     assert "runtime_cache" in service_status.json()
 
     manifest = client.get("/api/service/manifest")
     assert manifest.status_code == 200
-    assert manifest.json()["counts"]["capabilities"] >= 150
+    assert manifest.json()["counts"]["capabilities"] >= 240
     assert manifest.json()["routes"]["mcp_manifest"].endswith("/api/mcp/manifest")
     assert manifest.json()["routes"]["api_examples"].endswith("/api/examples")
 
@@ -76,6 +81,7 @@ def test_public_service_metadata_routes():
     api_examples = client.get("/api/examples")
     assert api_examples.status_code == 200
     assert any(example["name"] == "Recall context" for example in api_examples.json()["api_examples"])
+    assert any(example["name"] == "Connection kit" for example in api_examples.json()["api_examples"])
     assert any(example["path"] == "/api/workspaces/{slug}/ingest" for example in api_examples.json()["api_examples"])
 
     robots = client.get("/robots.txt")
@@ -88,6 +94,7 @@ def test_public_service_metadata_routes():
     assert "/api/sdk-snippets" in sitemap.text
     assert "/api/examples" in sitemap.text
     assert "/api-explorer" in sitemap.text
+    assert "/connect" in sitemap.text
     assert "/sdks" in sitemap.text
     assert "/capabilities" in sitemap.text
     assert "/examples" in sitemap.text

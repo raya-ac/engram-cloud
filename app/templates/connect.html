@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Connect · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">Connection kit</div>
+      <h2>Give an agent a workspace in minutes.</h2>
+      <p>Create a workspace key, fetch the connection kit, load recent memory, then save a checkpoint when the session ends.</p>
+      <div class="nav" style="margin-top:18px">
+        <a href="/login/github" class="button primary">Create workspace</a>
+        <a href="/api-explorer" class="button">API explorer</a>
+        <a href="{{ openapi_url }}" class="button">OpenAPI</a>
+      </div>
+      <div class="public-rail">
+        <div>
+          <strong>4</strong>
+          <p class="subtle">startup calls: bootstrap, recent, tools, context</p>
+        </div>
+        <div>
+          <strong>{{ tools|length }}</strong>
+          <p class="subtle">hosted MCP tools available through one endpoint</p>
+        </div>
+        <div>
+          <strong>{{ skills|length }}</strong>
+          <p class="subtle">starter skills downloadable as JSON or Markdown</p>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>key</span>
+        <span>config</span>
+        <span>recall</span>
+        <span>handoff</span>
+      </div>
+      <div class="signal-stack">
+        <div class="signal-line"><strong>Config</strong><span>`/api/workspaces/{slug}/connect` returns the full client profile.</span></div>
+        <div class="signal-line"><strong>Env</strong><span>`/api/workspaces/{slug}/env` returns a copyable `.env` block.</span></div>
+        <div class="signal-line"><strong>Runtime</strong><span>`/mcp` stays the single bridge for higher-level memory tools.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Boot sequence</h2>
+    <p class="subtle">This is the recommended order for a new agent session.</p>
+  </div>
+</section>
+
+<section class="grid four fade-reveal">
+  <div class="surface-block"><h3>1. Bootstrap</h3><p>Load endpoint URLs, tool discovery, starter skills, and auth shape.</p></div>
+  <div class="surface-block"><h3>2. Recall</h3><p>Fetch recent memory and compact task context before changing files.</p></div>
+  <div class="surface-block"><h3>3. Work</h3><p>Use direct routes for search/write and the MCP bridge for higher-level tools.</p></div>
+  <div class="surface-block"><h3>4. Handoff</h3><p>Save `session_checkpoint` or `session_handoff` so the next session resumes cleanly.</p></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Client config</h2>
+    <p class="subtle">Replace `{slug}` with the workspace slug and authenticate with a workspace API key.</p>
+  </div>
+</section>
+
+<section class="grid two fade-reveal">
+  <div class="surface-block">
+    <h3>JSON profile</h3>
+    <div class="copy-row">
+      <div class="code-block" id="connect-json">curl -H "Authorization: Bearer $MEMORYLAYER_KEY" \
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/connect"</div>
+      <button class="button copy-button" data-copy="#connect-json" type="button">Copy</button>
+    </div>
+  </div>
+  <div class="surface-block">
+    <h3>Env block</h3>
+    <div class="copy-row">
+      <div class="code-block" id="connect-env">curl -H "Authorization: Bearer $MEMORYLAYER_KEY" \
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/env"</div>
+      <button class="button copy-button" data-copy="#connect-env" type="button">Copy</button>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Recommended calls</h2>
+    <p class="subtle">Keep this small. The goal is enough state to start, not a giant prompt dump.</p>
+  </div>
+</section>
+
+<section class="section-stack">
+  <div class="detail-block fade-reveal">
+    <div class="detail-grid">
+      <div>
+        <h3>Load compact context</h3>
+        <p class="subtle">Ask the hosted bridge for task-specific context after bootstrapping.</p>
+      </div>
+      <div class="copy-row">
+        <div class="code-block" id="connect-context">curl -X POST -H "Authorization: Bearer $MEMORYLAYER_KEY" -H "Content-Type: application/json" \
+  -d '{"tool":"recall_context","args":{"query":"current task","max_tokens":1200}}' \
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp"</div>
+        <button class="button copy-button" data-copy="#connect-context" type="button">Copy</button>
+      </div>
+    </div>
+  </div>
+  <div class="detail-block fade-reveal">
+    <div class="detail-grid">
+      <div>
+        <h3>Save the stop point</h3>
+        <p class="subtle">A checkpoint is cheap and makes the next session faster.</p>
+      </div>
+      <div class="copy-row">
+        <div class="code-block" id="connect-checkpoint">curl -X POST -H "Authorization: Bearer $MEMORYLAYER_KEY" -H "Content-Type: application/json" \
+  -d '{"tool":"session_checkpoint","args":{"note":"Finished current task; next step is documented","limit":8}}' \
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp"</div>
+        <button class="button copy-button" data-copy="#connect-checkpoint" type="button">Copy</button>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

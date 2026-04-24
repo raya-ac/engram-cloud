@@ -167,7 +167,16 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
     ).json()["results"][0]["content"] == "delta api fact"
     assert client.get("/api/workspaces/flow-test/ingest/runs", headers=headers).json()["runs"]
     assert client.get("/api/workspaces/flow-test/export/recent", headers=headers).json()["memories"]
-    assert "ingest_url" in client.get("/api/workspaces/flow-test/bootstrap", headers=headers).json()["api"]
+    bootstrap_payload = client.get("/api/workspaces/flow-test/bootstrap", headers=headers).json()
+    assert "ingest_url" in bootstrap_payload["api"]
+    assert "connect_config_url" in bootstrap_payload["api"]
+    connect_payload = client.get("/api/workspaces/flow-test/connect", headers=headers).json()
+    assert connect_payload["workspace"]["slug"] == "flow-test"
+    assert connect_payload["endpoints"]["mcp"].endswith("/api/workspaces/flow-test/mcp")
+    assert connect_payload["startup_calls"]
+    env_payload = client.get("/api/workspaces/flow-test/env", headers=headers)
+    assert env_payload.status_code == 200
+    assert 'MEMORYLAYER_WORKSPACE="flow-test"' in env_payload.text
     assert client.post(
         "/api/workspaces/flow-test/mcp",
         headers=headers,
