@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Operations · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">Operations</div>
+      <h2>Operate hosted memory without guessing.</h2>
+      <p>The service exposes the controls an operator needs: usage, audit trails, key rotation, ingestion history, exports, manifests, and runtime status.</p>
+      <div class="nav" style="margin-top:18px">
+        <a href="/status" class="button primary">Service status</a>
+        <a href="/security" class="button">Security model</a>
+      </div>
+      <div class="public-rail">
+        <div><strong>{{ features|length }}</strong><p class="subtle">service features tracked in the manifest</p></div>
+        <div><strong>{{ manifest.counts.mcp_tools }}</strong><p class="subtle">hosted bridge tools with argument hints</p></div>
+        <div><strong>{{ manifest.counts.routes }}</strong><p class="subtle">public and workspace route groups</p></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>observe</span>
+        <span>rotate</span>
+        <span>export</span>
+        <span>recover</span>
+      </div>
+      <div class="hero-flow">
+        <div class="flow-card"><div class="flow-index">01 / Observe</div><div><strong>Know what happened</strong><p>Usage events and audits show route, actor, key label, status, and workspace scope.</p></div></div>
+        <div class="flow-card"><div class="flow-index">02 / Rotate</div><div><strong>Keep keys disposable</strong><p>Create keys per agent, worker, or pipeline, then revoke them without touching memory data.</p></div></div>
+        <div class="flow-card"><div class="flow-index">03 / Ingest</div><div><strong>Track imports</strong><p>Paste, file, and batch imports leave run records with source metadata and item counts.</p></div></div>
+        <div class="flow-card"><div class="flow-index">04 / Export</div><div><strong>Inspect and back up</strong><p>Recent exports make it easy to review the live memory surface or move data elsewhere.</p></div></div>
+      </div>
+      <div class="signal-stack">
+        <div class="signal-line"><strong>Operator rule</strong><span>Every agent should have its own named key.</span></div>
+        <div class="signal-line"><strong>Debug rule</strong><span>Use usage history before guessing why a client failed.</span></div>
+        <div class="signal-line"><strong>Recovery rule</strong><span>Export recent memory before destructive cleanup.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Operator loop.</h2>
+    <p class="subtle">A small weekly loop catches most workspace problems before they turn into stale memory.</p>
+  </div>
+</section>
+
+<section class="grid four fade-reveal">
+  <div class="surface-block"><h3>Review usage</h3><p>Check route volume, failed calls, inactive keys, and high-noise clients.</p></div>
+  <div class="surface-block"><h3>Rotate keys</h3><p>Replace long-lived or shared keys with named, scoped keys per client.</p></div>
+  <div class="surface-block"><h3>Check ingest</h3><p>Confirm large imports split cleanly and did not flood memory with duplicates.</p></div>
+  <div class="surface-block"><h3>Save handoffs</h3><p>Require checkpoints at the end of agent sessions and long automations.</p></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Runbook.</h2>
+    <p class="subtle">Concrete responses for common hosted-memory incidents.</p>
+  </div>
+</section>
+
+<section class="terminal-surface fade-reveal">
+  <div class="terminal-row"><span>noisy key</span><div>Inspect usage, create a replacement key with a clearer label, update the client, then revoke the noisy key.</div></div>
+  <div class="terminal-row"><span>bad ingest</span><div>Review ingest run metadata, export recent memories, forget bad records if needed, then re-import with smaller chunks.</div></div>
+  <div class="terminal-row"><span>stale context</span><div>Use search, recall hints, and session handoff snapshots to identify which state should be challenged or superseded.</div></div>
+  <div class="terminal-row"><span>client failure</span><div>Fetch `/connect`, verify the endpoint URL, list bridge tools, then test a small `recall_recent` call.</div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Controls exposed today.</h2>
+    <p class="subtle">The manifest is intentionally public so client builders can track the service surface.</p>
+  </div>
+  <a href="/api/service/manifest" class="button">Manifest JSON</a>
+</section>
+
+<section class="grid three fade-reveal">
+  {% for feature in features[:12] %}
+  <div class="surface-block">
+    <h3>{{ feature.name }}</h3>
+    <p>{{ feature.summary }}</p>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

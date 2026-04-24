@@ -229,6 +229,10 @@ SERVICE_FEATURES = [
     {"name": "Agent config API", "summary": "Expose a normalized JSON profile that agents can read on boot."},
     {"name": "Env template API", "summary": "Return a copyable .env block for local workers and agent launchers."},
     {"name": "Connect page", "summary": "Document the shortest path from workspace key to working agent memory."},
+    {"name": "Architecture guide", "summary": "Explain the hosted runtime, service metadata, workspace schemas, and Engram boundary."},
+    {"name": "Use-case library", "summary": "Show practical memory workflows for coding agents, teams, incidents, research, and automations."},
+    {"name": "Operations playbook", "summary": "Document key rotation, audit review, ingestion hygiene, and incident checks."},
+    {"name": "Integration catalog", "summary": "Describe how Codex, Claude, custom agents, CI jobs, and scripts connect to hosted memory."},
 ]
 
 
@@ -561,6 +565,10 @@ CAPABILITY_GROUPS = [
             "home page",
             "docs page",
             "agent page",
+            "architecture page",
+            "use cases page",
+            "operations page",
+            "integrations page",
             "examples page",
             "security page",
             "status page",
@@ -955,6 +963,10 @@ def public_manifest() -> dict:
             "docs": f"{settings.base_url}/docs",
             "agents": f"{settings.base_url}/agents",
             "connect": f"{settings.base_url}/connect",
+            "architecture": f"{settings.base_url}/architecture",
+            "use_cases": f"{settings.base_url}/use-cases",
+            "operations": f"{settings.base_url}/operations",
+            "integrations": f"{settings.base_url}/integrations",
             "capabilities": f"{settings.base_url}/capabilities",
             "examples": f"{settings.base_url}/examples",
             "api_explorer": f"{settings.base_url}/api-explorer",
@@ -983,6 +995,15 @@ def public_manifest() -> dict:
 
 
 CHANGELOG_ENTRIES = [
+    {
+        "version": "Product page expansion",
+        "date": "2026-04-24",
+        "changes": [
+            "Added architecture, use-case, operations, and integrations pages to explain the hosted runtime from client, operator, and workspace perspectives.",
+            "Expanded the public manifest, sitemap, navigation, and capability index so clients can discover the new service documentation.",
+            "Added route coverage for the new public pages and metadata links.",
+        ],
+    },
     {
         "version": "Themed error system",
         "date": "2026-04-24",
@@ -1643,6 +1664,51 @@ async def connect_page(request: Request):
     )
 
 
+@app.get("/architecture", response_class=HTMLResponse)
+async def architecture_page(request: Request):
+    return render(
+        request,
+        "architecture.html",
+        manifest=public_manifest(),
+        tools=SUPPORTED_TOOLS,
+        tool_groups=grouped_tool_list(),
+        capability_count=capability_count(),
+    )
+
+
+@app.get("/use-cases", response_class=HTMLResponse)
+async def use_cases_page(request: Request):
+    return render(
+        request,
+        "use_cases.html",
+        recipes=INTEGRATION_RECIPES,
+        playbooks=PLAYBOOKS,
+        capability_groups=CAPABILITY_GROUPS,
+    )
+
+
+@app.get("/operations", response_class=HTMLResponse)
+async def operations_page(request: Request):
+    return render(
+        request,
+        "operations.html",
+        features=SERVICE_FEATURES,
+        manifest=public_manifest(),
+    )
+
+
+@app.get("/integrations", response_class=HTMLResponse)
+async def integrations_page(request: Request):
+    return render(
+        request,
+        "integrations.html",
+        snippets=SDK_SNIPPETS,
+        recipes=INTEGRATION_RECIPES,
+        skills=starter_skill_list(),
+        manifest=public_manifest(),
+    )
+
+
 @app.get("/pricing")
 async def pricing_page():
     return RedirectResponse("/docs", status_code=302)
@@ -1817,6 +1883,10 @@ async def sitemap_xml():
         "",
         "agents",
         "connect",
+        "architecture",
+        "use-cases",
+        "operations",
+        "integrations",
         "docs",
         "capabilities",
         "examples",

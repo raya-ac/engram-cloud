@@ -58,7 +58,7 @@ For the actual memory runtime, a VPS is the clean default.
 - hardened browser and API boundary with CSP, frame blocking, host/origin checks, request-size limits, safer session cookies, basic throttles, malformed JSON accounting, and probe-path blocking
 - themed browser error pages for common HTTP failures while preserving JSON errors for API clients
 - starter skill downloads in JSON and markdown
-- public docs, examples, service status, security, and changelog pages
+- public docs, architecture, use-case, operations, integrations, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
 
 ## Stack
@@ -89,6 +89,10 @@ Open:
 - [http://127.0.0.1:8090](http://127.0.0.1:8090)
 - [http://127.0.0.1:8090/docs](http://127.0.0.1:8090/docs)
 - [http://127.0.0.1:8090/connect](http://127.0.0.1:8090/connect)
+- [http://127.0.0.1:8090/architecture](http://127.0.0.1:8090/architecture)
+- [http://127.0.0.1:8090/use-cases](http://127.0.0.1:8090/use-cases)
+- [http://127.0.0.1:8090/operations](http://127.0.0.1:8090/operations)
+- [http://127.0.0.1:8090/integrations](http://127.0.0.1:8090/integrations)
 - [http://127.0.0.1:8090/examples](http://127.0.0.1:8090/examples)
 - [http://127.0.0.1:8090/api-explorer](http://127.0.0.1:8090/api-explorer)
 - [http://127.0.0.1:8090/sdks](http://127.0.0.1:8090/sdks)
@@ -192,6 +196,10 @@ Public service metadata:
 - `GET /api/health`
 - `GET /api/service/status` including runtime cache metrics
 - `GET /capabilities` for the public capability index
+- `GET /architecture`
+- `GET /use-cases`
+- `GET /operations`
+- `GET /integrations`
 - `GET /api/service/manifest`
 - `GET /api/capabilities`
 - `GET /api/mcp/manifest`

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Integrations · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">Integrations</div>
+      <h2>One memory surface for every agent client.</h2>
+      <p>Memorylayer keeps the contract simple: HTTP routes for common operations, a hosted MCP bridge for higher-level tools, and starter skills for agent behavior.</p>
+      <div class="nav" style="margin-top:18px">
+        <a href="/sdks" class="button primary">SDK patterns</a>
+        <a href="/api/mcp/manifest" class="button">MCP manifest</a>
+      </div>
+      <div class="public-rail">
+        <div><strong>{{ snippets|length }}</strong><p class="subtle">copyable client snippets</p></div>
+        <div><strong>{{ recipes|length }}</strong><p class="subtle">integration recipes for real clients</p></div>
+        <div><strong>{{ skills|length }}</strong><p class="subtle">starter skills for agent bootstrapping</p></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>codex</span>
+        <span>claude</span>
+        <span>ci</span>
+        <span>custom</span>
+      </div>
+      <div class="hero-flow">
+        <div class="flow-card"><div class="flow-index">01 / Codex</div><div><strong>Project handoff by default</strong><p>Load compact context before code edits and save a checkpoint before the session ends.</p></div></div>
+        <div class="flow-card"><div class="flow-index">02 / Claude</div><div><strong>Skill-based startup</strong><p>Download a workspace skill that teaches Claude which URLs, headers, and handoff tools to use.</p></div></div>
+        <div class="flow-card"><div class="flow-index">03 / CI workers</div><div><strong>Remember build state</strong><p>Batch ingest logs, flaky test notes, deploy results, and rollback context from automation.</p></div></div>
+        <div class="flow-card"><div class="flow-index">04 / Custom tools</div><div><strong>Use the manifest</strong><p>Generate lightweight clients from routes, examples, SDK snippets, and MCP tool schemas.</p></div></div>
+      </div>
+      <div class="signal-stack">
+        <div class="signal-line"><strong>Direct API</strong><span>Search, remember, ingest, export, audit, usage, and status routes.</span></div>
+        <div class="signal-line"><strong>MCP bridge</strong><span>One POST target for retrieval, graph, curation, handoff, and memory health tools.</span></div>
+        <div class="signal-line"><strong>Skills</strong><span>Markdown instructions that make agents use memory consistently.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Client patterns.</h2>
+    <p class="subtle">Different clients can share the same workspace without sharing the same key.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block"><h3>Codex sessions</h3><p>Use recent recall and handoff snapshots to make coding sessions resume from the real project state.</p><div class="badge-row"><span class="badge">recall_context</span><span class="badge">session_checkpoint</span></div></div>
+  <div class="surface-block"><h3>Claude projects</h3><p>Install a workspace-specific skill and route memory calls through the hosted bridge.</p><div class="badge-row"><span class="badge">skills</span><span class="badge">mcp</span></div></div>
+  <div class="surface-block"><h3>GitHub Actions</h3><p>Send build summaries, failing test clusters, and deploy outcomes through batch ingestion.</p><div class="badge-row"><span class="badge">ingest</span><span class="badge">automation</span></div></div>
+  <div class="surface-block"><h3>Local scripts</h3><p>Fetch `.env` output, use curl or requests, and avoid building a custom config format.</p><div class="badge-row"><span class="badge">env</span><span class="badge">curl</span></div></div>
+  <div class="surface-block"><h3>Dashboards</h3><p>Render service manifests, route examples, usage summaries, and recent memory exports inside internal tools.</p><div class="badge-row"><span class="badge">manifest</span><span class="badge">json</span></div></div>
+  <div class="surface-block"><h3>Background agents</h3><p>Poll context, run work, write findings, and checkpoint on a schedule without a browser session.</p><div class="badge-row"><span class="badge">worker</span><span class="badge">handoff</span></div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Connection contract.</h2>
+    <p class="subtle">These endpoints are enough to wire most clients.</p>
+  </div>
+</section>
+
+<section class="terminal-surface fade-reveal">
+  <div class="terminal-row"><span>/connect</span><div>Full workspace client profile with service URLs, startup calls, skill links, and bridge metadata.</div></div>
+  <div class="terminal-row"><span>/env</span><div>Copyable environment variables for local scripts, launchers, and worker processes.</div></div>
+  <div class="terminal-row"><span>/mcp/tools</span><div>Workspace-scoped tool catalog with argument hints and descriptions.</div></div>
+  <div class="terminal-row"><span>/mcp</span><div>Single authenticated bridge for higher-level Engram memory tools.</div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Starter assets.</h2>
+    <p class="subtle">Use these to bootstrap clients without writing docs from scratch.</p>
+  </div>
+  <a href="/api/skills" class="button">Skill JSON</a>
+</section>
+
+<section class="grid three fade-reveal">
+  {% for skill in skills %}
+  <div class="surface-block">
+    <h3>{{ skill.name }}</h3>
+    <p>{{ skill.summary }}</p>
+    <div class="badge-row"><span class="badge">/{{ skill.name }}.md</span></div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Recipes.</h2>
+    <p class="subtle">Each recipe maps to a client action you can test with curl.</p>
+  </div>
+  <a href="/api/examples" class="button">Examples JSON</a>
+</section>
+
+<section class="section-stack">
+  {% for recipe in recipes[:4] %}
+  <div class="detail-block fade-reveal">
+    <div class="detail-grid">
+      <div>
+        <h3>{{ recipe.name }}</h3>
+        <div class="badge-row">
+          {% for step in recipe.steps %}
+          <span class="badge">{{ step }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="copy-row">
+        <div class="code-block" id="integration-recipe-{{ loop.index }}">{{ recipe.command }}</div>
+        <button class="button copy-button" data-copy="#integration-recipe-{{ loop.index }}" type="button">Copy</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

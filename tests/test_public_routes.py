@@ -23,7 +23,23 @@ async def server_error():
 
 
 def test_public_service_pages_render():
-    for path in ("/", "/agents", "/connect", "/docs", "/capabilities", "/examples", "/api-explorer", "/sdks", "/security", "/status", "/changelog"):
+    for path in (
+        "/",
+        "/agents",
+        "/connect",
+        "/architecture",
+        "/use-cases",
+        "/operations",
+        "/integrations",
+        "/docs",
+        "/capabilities",
+        "/examples",
+        "/api-explorer",
+        "/sdks",
+        "/security",
+        "/status",
+        "/changelog",
+    ):
         response = client.get(path)
         assert response.status_code == 200
     connect = client.get("/connect")
@@ -49,6 +65,18 @@ def test_public_service_pages_render():
     api_explorer = client.get("/api-explorer")
     assert "Know the shape before you wire it" in api_explorer.text
     assert "Session checkpoint" in api_explorer.text
+    architecture = client.get("/architecture")
+    assert "Thin cloud layer" in architecture.text
+    assert "Request path" in architecture.text
+    use_cases = client.get("/use-cases")
+    assert "Memory workflows that survive handoff" in use_cases.text
+    assert "Repo continuity" in use_cases.text
+    operations = client.get("/operations")
+    assert "Operate hosted memory without guessing" in operations.text
+    assert "Operator loop" in operations.text
+    integrations = client.get("/integrations")
+    assert "One memory surface for every agent client" in integrations.text
+    assert "Connection contract" in integrations.text
     pricing = client.get("/pricing", follow_redirects=False)
     assert pricing.status_code == 302
     assert pricing.headers["location"] == "/docs"
@@ -73,6 +101,10 @@ def test_public_service_metadata_routes():
     assert manifest.json()["counts"]["capabilities"] >= 240
     assert manifest.json()["routes"]["mcp_manifest"].endswith("/api/mcp/manifest")
     assert manifest.json()["routes"]["api_examples"].endswith("/api/examples")
+    assert manifest.json()["routes"]["architecture"].endswith("/architecture")
+    assert manifest.json()["routes"]["use_cases"].endswith("/use-cases")
+    assert manifest.json()["routes"]["operations"].endswith("/operations")
+    assert manifest.json()["routes"]["integrations"].endswith("/integrations")
 
     capabilities = client.get("/api/capabilities")
     assert capabilities.status_code == 200
@@ -115,6 +147,10 @@ def test_public_service_metadata_routes():
     assert "/capabilities" in sitemap.text
     assert "/examples" in sitemap.text
     assert "/security" in sitemap.text
+    assert "/architecture" in sitemap.text
+    assert "/use-cases" in sitemap.text
+    assert "/operations" in sitemap.text
+    assert "/integrations" in sitemap.text
 
 
 def test_skills_endpoints_expose_json_and_markdown():

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Architecture · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">Architecture</div>
+    <h2>Thin cloud layer. Real memory engine.</h2>
+    <p>Memorylayer keeps hosted concerns separate from Engram: identity, workspaces, API keys, audit trails, connection kits, and a small HTTP bridge.</p>
+    <div class="nav" style="margin-top:18px">
+      <a href="/connect" class="button primary">Connect an agent</a>
+      <a href="/operations" class="button">Operate it</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="runtime-strip">
+      <span>client</span>
+      <span>service</span>
+      <span>schema</span>
+      <span>engine</span>
+    </div>
+    <div class="hero-flow">
+      <div class="flow-card"><div class="flow-index">01 / Client</div><div><strong>Agents and scripts</strong><p>Codex, Claude, custom runners, CI jobs, and scripts call a workspace-scoped surface.</p></div></div>
+      <div class="flow-card"><div class="flow-index">02 / Service</div><div><strong>Auth and control</strong><p>GitHub login, workspace membership, hashed keys, audit trails, and usage events.</p></div></div>
+      <div class="flow-card"><div class="flow-index">03 / Boundary</div><div><strong>Separate schemas</strong><p>Every workspace maps to its own Engram schema and operational history.</p></div></div>
+      <div class="flow-card"><div class="flow-index">04 / Engram</div><div><strong>Memory runtime</strong><p>Retrieval, graph, handoff, curation, and continuity stay inside the real engine.</p></div></div>
+    </div>
+    <div class="signal-stack">
+      <div class="signal-line"><strong>Runtime</strong><span>VPS-hosted FastAPI service with Postgres metadata.</span></div>
+      <div class="signal-line"><strong>Memory</strong><span>Workspace-specific Engram schemas and warm runtime cache.</span></div>
+      <div class="signal-line"><strong>Surface</strong><span>Public manifests, API examples, SDK snippets, and OpenAPI.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Boundaries that matter.</h2>
+    <p class="subtle">The hosted service does not pretend to be the memory system. It gives the memory system accounts, keys, URLs, and operational controls.</p>
+  </div>
+  <a href="/api/service/manifest" class="button">Service manifest</a>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block"><h3>Account plane</h3><p>GitHub OAuth, sessions, members, invites, and dashboard routes.</p><div class="badge-row"><span class="badge">browser</span><span class="badge">human</span></div></div>
+  <div class="surface-block"><h3>Workspace plane</h3><p>API keys, audit events, usage events, ingestion runs, exports, and connection kits.</p><div class="badge-row"><span class="badge">operator</span><span class="badge">agent</span></div></div>
+  <div class="surface-block"><h3>Memory plane</h3><p>Engram recall, remember, graph, curation, summaries, handoffs, and health checks.</p><div class="badge-row"><span class="badge">runtime</span><span class="badge">engine</span></div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Request path.</h2>
+    <p class="subtle">A workspace API call has a small number of predictable checkpoints.</p>
+  </div>
+</section>
+
+<section class="terminal-surface fade-reveal">
+  <div class="terminal-row"><span>01 guard</span><div>Host, method, path, size, origin, rate limit, and security headers are handled before routing.</div></div>
+  <div class="terminal-row"><span>02 auth</span><div>Workspace routes resolve a bearer or X-API-Key token against a hashed key for that slug.</div></div>
+  <div class="terminal-row"><span>03 audit</span><div>Successful and selected failed calls are recorded with route, key, status, and metadata.</div></div>
+  <div class="terminal-row"><span>04 engine</span><div>The call enters the workspace Engram runtime and returns memory results through a stable JSON shape.</div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Deployment shape.</h2>
+    <p class="subtle">Simple by design: one Python app, one Postgres database, one long-lived memory process model.</p>
+  </div>
+</section>
+
+<section class="grid four fade-reveal">
+  <div class="surface-block"><h3>FastAPI</h3><p>Public pages, workspace dashboard, OAuth, and JSON endpoints.</p></div>
+  <div class="surface-block"><h3>Postgres</h3><p>App metadata plus per-workspace Engram schemas.</p></div>
+  <div class="surface-block"><h3>Docker</h3><p>Repeatable VPS deployment with a narrow exposed port.</p></div>
+  <div class="surface-block"><h3>Cloudflare</h3><p>Edge TLS and an extra layer against malformed probes.</p></div>
+</section>
+{% endblock %}

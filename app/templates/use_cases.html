@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Use cases · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">Use cases</div>
+      <h2>Memory workflows that survive handoff.</h2>
+      <p>Memorylayer is useful when an agent, team, or automation needs context that outlives a single chat window, terminal session, or CI run.</p>
+      <div class="nav" style="margin-top:18px">
+        <a href="/connect" class="button primary">Connect a workspace</a>
+        <a href="/examples" class="button">View examples</a>
+      </div>
+      <div class="public-rail">
+        <div><strong>{{ playbooks|length }}</strong><p class="subtle">playbooks for repeatable memory operations</p></div>
+        <div><strong>{{ recipes|length }}</strong><p class="subtle">integration recipes for agents and workers</p></div>
+        <div><strong>{{ capability_groups|length }}</strong><p class="subtle">capability groups exposed through the service</p></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>handoff</span>
+        <span>triage</span>
+        <span>research</span>
+        <span>automation</span>
+      </div>
+      <div class="hero-flow">
+        <div class="flow-card"><div class="flow-index">01 / Agent handoff</div><div><strong>Start from the real stop point</strong><p>Load recent memory, compact context, active decisions, and known follow-ups before touching code.</p></div></div>
+        <div class="flow-card"><div class="flow-index">02 / Team memory</div><div><strong>Share operational context</strong><p>Keep project state, incident notes, and decisions available to every authorized workspace member.</p></div></div>
+        <div class="flow-card"><div class="flow-index">03 / Research threads</div><div><strong>Keep evidence searchable</strong><p>Store findings, sources, hypotheses, and corrections as structured memory instead of lost transcripts.</p></div></div>
+        <div class="flow-card"><div class="flow-index">04 / Long automations</div><div><strong>Give workers continuity</strong><p>CI jobs, monitors, and scheduled agents can recall what changed and write back what they learned.</p></div></div>
+      </div>
+      <div class="signal-stack">
+        <div class="signal-line"><strong>Best fit</strong><span>Multi-session work with decisions, state, and follow-up risk.</span></div>
+        <div class="signal-line"><strong>Bad fit</strong><span>One-off chats where no future agent needs the result.</span></div>
+        <div class="signal-line"><strong>Pattern</strong><span>Recall first, work normally, remember the useful delta.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Where it fits.</h2>
+    <p class="subtle">These are practical operating patterns for hosted memory, not abstract feature labels.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block"><h3>Repo continuity</h3><p>Preserve branch state, open bugs, test status, release notes, and deployment decisions across Codex or Claude sessions.</p><div class="badge-row"><span class="badge">coding agents</span><span class="badge">handoff</span></div></div>
+  <div class="surface-block"><h3>Incident memory</h3><p>Capture hypotheses, affected systems, mitigations, owners, and postmortem actions while the response is still moving.</p><div class="badge-row"><span class="badge">ops</span><span class="badge">audit</span></div></div>
+  <div class="surface-block"><h3>Research notebook</h3><p>Turn transcripts, notes, citations, and evidence trails into searchable memory with durable negative knowledge.</p><div class="badge-row"><span class="badge">research</span><span class="badge">evidence</span></div></div>
+  <div class="surface-block"><h3>Customer context</h3><p>Store workspace-specific preferences, constraints, resolved questions, and support outcomes without mixing tenants.</p><div class="badge-row"><span class="badge">workspace</span><span class="badge">isolation</span></div></div>
+  <div class="surface-block"><h3>CI recall</h3><p>Let build workers recall previous failures, flaky tests, deployment notes, and environment-specific fixes.</p><div class="badge-row"><span class="badge">automation</span><span class="badge">runtime</span></div></div>
+  <div class="surface-block"><h3>Agent onboarding</h3><p>Bootstrap new tools with starter skills, service manifests, route fixtures, and compact project context.</p><div class="badge-row"><span class="badge">skills</span><span class="badge">manifest</span></div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Workflow patterns.</h2>
+    <p class="subtle">Most useful clients follow the same small loop.</p>
+  </div>
+</section>
+
+<section class="terminal-surface fade-reveal">
+  <div class="terminal-row"><span>bootstrap</span><div>Fetch `/connect` or `/env` to discover URLs, auth shape, startup calls, starter skills, and available MCP tools.</div></div>
+  <div class="terminal-row"><span>recall</span><div>Load recent memories and ask `recall_context` for the specific task before making changes.</div></div>
+  <div class="terminal-row"><span>operate</span><div>Use direct APIs for common search/write paths and the MCP bridge for higher-level memory tools.</div></div>
+  <div class="terminal-row"><span>checkpoint</span><div>Finish with `session_checkpoint` or `session_handoff` so the next session starts cleanly.</div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Ready-made playbooks.</h2>
+    <p class="subtle">Use these as implementation checklists for teams and agent clients.</p>
+  </div>
+  <a href="/api/playbooks" class="button">Playbook JSON</a>
+</section>
+
+<section class="grid two fade-reveal">
+  {% for playbook in playbooks %}
+  <div class="surface-block">
+    <h3>{{ playbook.name }}</h3>
+    <p>{{ playbook.outcome }}</p>
+    <div class="badge-row">
+      {% for step in playbook.steps %}
+      <span class="badge">{{ step }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}
