@@ -163,3 +163,7 @@ Public service metadata:
 - `GET /api/service/status` including runtime cache metrics
 - `GET /robots.txt`
 - `GET /sitemap.xml`
+
+## License
+
+Proprietary. All rights reserved. See [LICENSE](LICENSE).

@@ -8,6 +8,10 @@ version = "0.1.0"
 description = "Hosted multi-workspace service layer for Engram"
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "Proprietary" }
+classifiers = [
+  "License :: Other/Proprietary License",
+]
 dependencies = [
   "engram-memory-system>=0.5.2",
   "fastapi>=0.115.0",
