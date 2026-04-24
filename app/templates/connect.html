@@ -34,10 +34,40 @@
         <span>recall</span>
         <span>handoff</span>
       </div>
+      <div class="hero-flow">
+        <div class="flow-card">
+          <div class="flow-index">01 / Key</div>
+          <div>
+            <strong>Create one scoped key</strong>
+            <p>Use a separate workspace API key for each agent, worker, or integration so usage and revocation stay clean.</p>
+          </div>
+        </div>
+        <div class="flow-card">
+          <div class="flow-index">02 / Config</div>
+          <div>
+            <strong>Fetch the connection kit</strong>
+            <p>`/connect` returns endpoint URLs, MCP settings, starter skills, and the startup calls a client should run.</p>
+          </div>
+        </div>
+        <div class="flow-card">
+          <div class="flow-index">03 / Recall</div>
+          <div>
+            <strong>Load working context</strong>
+            <p>Start with recent memory, then ask `recall_context` for compact task-specific state before making changes.</p>
+          </div>
+        </div>
+        <div class="flow-card">
+          <div class="flow-index">04 / Handoff</div>
+          <div>
+            <strong>Save the stop point</strong>
+            <p>End with `session_checkpoint` or `session_handoff` so the next agent session starts with the right state.</p>
+          </div>
+        </div>
+      </div>
       <div class="signal-stack">
-        <div class="signal-line"><strong>Config</strong><span>`/api/workspaces/{slug}/connect` returns the full client profile.</span></div>
-        <div class="signal-line"><strong>Env</strong><span>`/api/workspaces/{slug}/env` returns a copyable `.env` block.</span></div>
-        <div class="signal-line"><strong>Runtime</strong><span>`/mcp` stays the single bridge for higher-level memory tools.</span></div>
+        <div class="signal-line"><strong>Config JSON</strong><span>`/api/workspaces/{slug}/connect` returns the full client profile, including startup calls.</span></div>
+        <div class="signal-line"><strong>Env output</strong><span>`/api/workspaces/{slug}/env` returns copyable variables for local launchers.</span></div>
+        <div class="signal-line"><strong>Runtime bridge</strong><span>`/mcp` stays the single bridge for higher-level memory tools.</span></div>
       </div>
     </div>
   </div>
