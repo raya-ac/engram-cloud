@@ -1,9 +1,25 @@
 from fastapi.testclient import TestClient
+from fastapi import HTTPException
 
 from app.main import app, split_ingest_text
 
 
 client = TestClient(app)
+
+
+@app.get("/__test/expired-error", include_in_schema=False)
+async def expired_error():
+    raise HTTPException(status_code=410, detail="expired")
+
+
+@app.get("/__test/limited-error", include_in_schema=False)
+async def limited_error():
+    raise HTTPException(status_code=429, detail="limited")
+
+
+@app.get("/__test/server-error", include_in_schema=False)
+async def server_error():
+    raise RuntimeError("boom")
 
 
 def test_public_service_pages_render():
@@ -117,7 +133,7 @@ def test_skills_endpoints_expose_json_and_markdown():
     assert "# Workspace Memory" in skill_md.text
 
 
-def test_not_found_page_uses_public_theme_but_api_stays_json():
+def test_error_pages_use_public_theme_but_api_stays_json():
     missing = client.get("/definitely-missing")
     assert missing.status_code == 404
     assert "Memory has no path here." in missing.text
@@ -126,6 +142,44 @@ def test_not_found_page_uses_public_theme_but_api_stays_json():
     api_missing = client.get("/api/definitely-missing")
     assert api_missing.status_code == 404
     assert api_missing.json()["detail"] == "Not found"
+
+    bad_request = client.get("/%2e%2e/%2e%2e/etc/passwd")
+    assert bad_request.status_code == 400
+    assert "This signal is malformed." in bad_request.text
+
+    forbidden = client.post(
+        "/app/workspaces",
+        data={"name": "cross site"},
+        headers={"origin": "https://evil.example"},
+        follow_redirects=False,
+    )
+    assert forbidden.status_code == 403
+    assert "This boundary held." in forbidden.text
+
+    method_blocked = client.request("TRACE", "/")
+    assert method_blocked.status_code == 405
+    assert "Wrong motion for this route." in method_blocked.text
+
+    too_large = client.post(
+        "/app/workspaces",
+        data={"name": "x"},
+        headers={"content-length": "999999999"},
+        follow_redirects=False,
+    )
+    assert too_large.status_code == 413
+    assert "Too much memory at once." in too_large.text
+
+    expired = client.get("/__test/expired-error")
+    assert expired.status_code == 410
+    assert "This link aged out." in expired.text
+
+    limited = client.get("/__test/limited-error")
+    assert limited.status_code == 429
+    assert "The channel is saturated." in limited.text
+
+    server = TestClient(app, raise_server_exceptions=False).get("/__test/server-error")
+    assert server.status_code == 500
+    assert "The runtime dropped a frame." in server.text
 
 
 def test_ingest_text_split_modes():

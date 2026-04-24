@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}404 · Memorylayer{% endblock %}
+{% block title %}{{ status_code }} · Memorylayer{% endblock %}
 {% block body %}
 <style>
-  .missing-stage {
+  .error-stage {
     position: relative;
     min-height: min(740px, calc(100svh - 130px));
     display: grid;
@@ -18,8 +18,8 @@
       linear-gradient(135deg, rgba(251,250,246,0.95), rgba(231,225,212,0.84));
     background-size: auto, 56px 56px, 56px 56px, auto;
   }
-  .missing-stage::before {
-    content: "404";
+  .error-stage::before {
+    content: "{{ status_code }}";
     position: absolute;
     right: clamp(-36px, 3vw, 44px);
     bottom: clamp(-18px, 2vw, 26px);
@@ -28,26 +28,26 @@
     letter-spacing: -0.12em;
     pointer-events: none;
   }
-  .missing-copy {
+  .error-copy {
     position: relative;
     z-index: 2;
-    max-width: 640px;
+    max-width: 650px;
     animation: fade-up 700ms ease both;
   }
-  .missing-copy h2 {
+  .error-copy h2 {
     margin: 0 0 18px;
-    max-width: 9ch;
+    max-width: 10ch;
     font-size: clamp(56px, 8vw, 118px);
     line-height: 0.88;
     letter-spacing: -0.075em;
   }
-  .missing-copy p {
-    max-width: 48ch;
+  .error-copy p {
+    max-width: 50ch;
     margin: 0 0 18px;
     color: var(--muted);
     font-size: clamp(16px, 1.3vw, 19px);
   }
-  .missing-map {
+  .error-map {
     position: absolute;
     inset: clamp(120px, 16vh, 180px) max(30px, calc((100vw - 1280px) / 2 + 30px)) 70px auto;
     width: min(46vw, 560px);
@@ -60,7 +60,7 @@
     backdrop-filter: blur(18px);
     animation: float-map 7s ease-in-out infinite;
   }
-  .missing-map::before {
+  .error-map::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -70,7 +70,7 @@
     background-size: 44px 44px;
     mask-image: radial-gradient(circle at 50% 50%, black, transparent 78%);
   }
-  .lost-route {
+  .error-route {
     position: absolute;
     left: 28px;
     right: 28px;
@@ -86,6 +86,11 @@
     font: 11px/1.2 "IBM Plex Mono", ui-monospace, monospace;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+  .error-route span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .route-node {
     position: absolute;
@@ -107,7 +112,7 @@
     background: repeating-linear-gradient(90deg, rgba(17,17,15,0.42) 0 12px, transparent 12px 22px);
     transform: rotate(-9deg);
   }
-  .missing-panel {
+  .error-panel {
     position: absolute;
     left: 28px;
     right: 28px;
@@ -120,21 +125,21 @@
     border-top: 1px solid rgba(17,17,15,0.12);
     background: rgba(251,250,246,0.78);
   }
-  .missing-panel strong {
+  .error-panel strong {
     display: block;
     margin-bottom: 5px;
     font-size: 18px;
     letter-spacing: -0.04em;
   }
-  .missing-panel span {
+  .error-panel span {
     color: var(--muted);
     font-size: 13px;
   }
-  .missing-code {
+  .error-code {
     font: 600 48px/0.9 "Instrument Sans", ui-sans-serif, sans-serif;
     letter-spacing: -0.08em;
   }
-  .missing-actions {
+  .error-actions {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
@@ -145,17 +150,17 @@
     50% { transform: translate3d(0, -12px, 0) rotate(1deg); }
   }
   @media (max-width: 960px) {
-    .missing-stage {
+    .error-stage {
       min-height: auto;
       padding-top: 38px;
       padding-bottom: 44px;
     }
-    .missing-stage::before {
+    .error-stage::before {
       right: -18px;
       bottom: 18px;
       font-size: 170px;
     }
-    .missing-map {
+    .error-map {
       position: relative;
       inset: auto;
       width: 100%;
@@ -163,30 +168,30 @@
       height: 360px;
       margin-top: 28px;
     }
-    .missing-panel { grid-template-columns: 1fr; }
+    .error-panel { grid-template-columns: 1fr; }
   }
 </style>
 
-<section class="missing-stage">
-  <div class="missing-copy">
-    <div class="eyebrow">Route not found</div>
-    <h2>Memory has no path here.</h2>
-    <p>The URL you opened is not part of this workspace surface. The service is still online; this coordinate just does not resolve.</p>
-    <div class="missing-actions">
+<section class="error-stage">
+  <div class="error-copy">
+    <div class="eyebrow">{{ eyebrow }}</div>
+    <h2>{{ headline }}</h2>
+    <p>{{ message }}</p>
+    <div class="error-actions">
       <a href="/" class="button primary">Return home</a>
       <a href="/docs" class="button">Read docs</a>
       <a href="/status" class="button">Check status</a>
     </div>
   </div>
-  <div class="missing-map" aria-hidden="true">
-    <div class="lost-route"><span>unresolved route</span><span>{{ path }}</span></div>
+  <div class="error-map" aria-hidden="true">
+    <div class="error-route"><span>{{ route_label }}</span><span>{{ path }}</span></div>
     <div class="broken-line"></div>
     <div class="route-node one"></div>
     <div class="route-node two"></div>
     <div class="route-node three"></div>
-    <div class="missing-panel">
-      <div><strong>No matching memory surface</strong><span>Try the docs, dashboard, or public service map.</span></div>
-      <div class="missing-code">404</div>
+    <div class="error-panel">
+      <div><strong>{{ panel_title }}</strong><span>{{ panel_text }}</span></div>
+      <div class="error-code">{{ status_code }}</div>
     </div>
   </div>
 </section>

@@ -72,22 +72,127 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc: StarletteHTTPException):
-    if request.url.path.startswith("/api/"):
-        return JSONResponse({"detail": "Not found"}, status_code=404)
+ERROR_COPY = {
+    400: {
+        "eyebrow": "Bad request",
+        "headline": "This signal is malformed.",
+        "message": "The service could not read this request cleanly. Check the URL, payload, or form data and try again.",
+        "route_label": "rejected input",
+        "panel_title": "Request blocked before memory access",
+        "panel_text": "Nothing was written or retrieved.",
+    },
+    401: {
+        "eyebrow": "Authentication required",
+        "headline": "This memory is locked.",
+        "message": "The route needs a valid session or workspace API key before it can touch memory.",
+        "route_label": "missing credentials",
+        "panel_title": "No trusted identity",
+        "panel_text": "Sign in or use a scoped workspace key.",
+    },
+    403: {
+        "eyebrow": "Access denied",
+        "headline": "This boundary held.",
+        "message": "Your identity reached the service, but this route is outside your current workspace permissions.",
+        "route_label": "blocked boundary",
+        "panel_title": "Workspace isolation stayed intact",
+        "panel_text": "Use the right workspace, role, or key.",
+    },
+    404: {
+        "eyebrow": "Route not found",
+        "headline": "Memory has no path here.",
+        "message": "The URL you opened is not part of this workspace surface. The service is still online; this coordinate just does not resolve.",
+        "route_label": "unresolved route",
+        "panel_title": "No matching memory surface",
+        "panel_text": "Try the docs, dashboard, or public service map.",
+    },
+    405: {
+        "eyebrow": "Method blocked",
+        "headline": "Wrong motion for this route.",
+        "message": "This endpoint does not accept that HTTP method. The request stopped before it reached workspace memory.",
+        "route_label": "method rejected",
+        "panel_title": "Allowed surface only",
+        "panel_text": "Use the documented method for this endpoint.",
+    },
+    410: {
+        "eyebrow": "Expired route",
+        "headline": "This link aged out.",
+        "message": "The invite or route existed before, but its usable window is closed now.",
+        "route_label": "expired coordinate",
+        "panel_title": "No longer valid",
+        "panel_text": "Ask for a fresh invite or return to the dashboard.",
+    },
+    413: {
+        "eyebrow": "Payload too large",
+        "headline": "Too much memory at once.",
+        "message": "The request is larger than this service accepts in a single pass. Split the payload and send smaller batches.",
+        "route_label": "oversized payload",
+        "panel_title": "Size guard activated",
+        "panel_text": "Batch ingestion is safer in smaller chunks.",
+    },
+    429: {
+        "eyebrow": "Rate limited",
+        "headline": "The channel is saturated.",
+        "message": "Too many requests arrived in a short window. Wait briefly and retry with a slower cadence.",
+        "route_label": "throttled route",
+        "panel_title": "Abuse guard activated",
+        "panel_text": "Back off and retry after the limit resets.",
+    },
+    500: {
+        "eyebrow": "Server error",
+        "headline": "The runtime dropped a frame.",
+        "message": "Something failed inside the service. The public surface is still protected, and no internal details are exposed here.",
+        "route_label": "runtime fault",
+        "panel_title": "Internal details withheld",
+        "panel_text": "Check service status or try again shortly.",
+    },
+}
+
+
+def error_payload(status_code: int, path: str) -> dict:
+    copy = ERROR_COPY.get(status_code, ERROR_COPY[500])
+    return {
+        "status_code": status_code,
+        "path": path,
+        **copy,
+    }
+
+
+def is_api_request(request: Request) -> bool:
+    return request.url.path.startswith("/api/")
+
+
+def render_error_page(request: Request, status_code: int):
     return templates.TemplateResponse(
         request,
-        "not_found.html",
+        "error.html",
         {
             "request": request,
             "settings": settings,
             "current_user_id": current_user_id(request),
             "flash": None,
-            "path": request.url.path,
+            **error_payload(status_code, request.url.path),
         },
-        status_code=404,
+        status_code=status_code,
     )
+
+
+app.state.error_renderer = render_error_page
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error_handler(request: Request, exc: StarletteHTTPException):
+    status_code = exc.status_code
+    if is_api_request(request):
+        detail = "Not found" if status_code == 404 else exc.detail
+        return JSONResponse({"detail": detail}, status_code=status_code, headers=exc.headers)
+    return render_error_page(request, status_code)
+
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Request, exc: Exception):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "Internal server error"}, status_code=500)
+    return render_error_page(request, 500)
 
 
 SERVICE_FEATURES = [
@@ -878,6 +983,15 @@ def public_manifest() -> dict:
 
 
 CHANGELOG_ENTRIES = [
+    {
+        "version": "Themed error system",
+        "date": "2026-04-24",
+        "changes": [
+            "Replaced the single 404 treatment with a reusable Memorylayer error page for browser-facing 400, 401, 403, 404, 405, 410, 413, 429, and 500 responses.",
+            "Kept API errors machine-readable so clients still receive JSON for /api routes.",
+            "Wired middleware-level security blocks into the same themed browser error renderer.",
+        ],
+    },
     {
         "version": "HTTP probe hardening",
         "date": "2026-04-24",

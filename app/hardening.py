@@ -94,13 +94,13 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
         self._buckets: dict[str, deque[float]] = defaultdict(deque)
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        blocked = (
-            self._validate_method(request)
-            or self._validate_host(request)
-            or self._validate_path(request)
-            or self._validate_body_size(request)
-            or self._validate_origin(request)
-        )
+        blocked = self._validate_method(request)
+        if blocked:
+            return blocked
+        blocked = self._validate_host(request)
+        if blocked:
+            return blocked
+        blocked = self._validate_path(request) or self._validate_body_size(request) or self._validate_origin(request)
         if blocked:
             return blocked
         limited = self._rate_limit(request)
@@ -108,9 +108,18 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
             return limited
         return await call_next(request)
 
+    def _error_response(self, request: Request, status_code: int, detail: str, headers: dict | None = None) -> Response:
+        renderer = getattr(request.app.state, "error_renderer", None)
+        if renderer and not request.url.path.startswith("/api/"):
+            response = renderer(request, status_code)
+            if headers:
+                response.headers.update(headers)
+            return response
+        return JSONResponse({"detail": detail}, status_code=status_code, headers=headers)
+
     def _validate_method(self, request: Request) -> Response | None:
         if request.method not in ALLOWED_METHODS:
-            return JSONResponse({"detail": "Method not allowed"}, status_code=405, headers={"Allow": ", ".join(sorted(ALLOWED_METHODS))})
+            return self._error_response(request, 405, "Method not allowed", headers={"Allow": ", ".join(sorted(ALLOWED_METHODS))})
         return None
 
     def _validate_host(self, request: Request) -> Response | None:
@@ -124,11 +133,11 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
         raw = raw_path.decode("latin-1", errors="ignore").lower()
         clean_path = request.url.path.lower()
         if any(marker in raw for marker in SUSPICIOUS_PATH_MARKERS):
-            return PlainTextResponse("Bad request path", status_code=400)
+            return self._error_response(request, 400, "Bad request path")
         if any(part.startswith(".") for part in clean_path.split("/") if part):
-            return PlainTextResponse("Bad request path", status_code=400)
+            return self._error_response(request, 400, "Bad request path")
         if any(marker in clean_path for marker in COMMON_PROBE_SUFFIXES):
-            return PlainTextResponse("Not found", status_code=404)
+            return self._error_response(request, 404, "Not found")
         return None
 
     def _validate_body_size(self, request: Request) -> Response | None:
@@ -136,9 +145,9 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
         try:
             size = int(content_length) if content_length else 0
         except ValueError:
-            return JSONResponse({"detail": "Invalid Content-Length"}, status_code=400)
+            return self._error_response(request, 400, "Invalid Content-Length")
         if size > settings.max_request_bytes:
-            return JSONResponse({"detail": "Request body too large"}, status_code=413)
+            return self._error_response(request, 413, "Request body too large")
         return None
 
     def _validate_origin(self, request: Request) -> Response | None:
@@ -147,9 +156,9 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
         origin = request.headers.get("origin")
         referer = request.headers.get("referer")
         if origin and not _same_origin(request, origin):
-            return PlainTextResponse("Cross-origin form submission blocked", status_code=403)
+            return self._error_response(request, 403, "Cross-origin form submission blocked")
         if not origin and referer and not _same_origin(request, referer):
-            return PlainTextResponse("Cross-origin form submission blocked", status_code=403)
+            return self._error_response(request, 403, "Cross-origin form submission blocked")
         return None
 
     def _rate_limit(self, request: Request) -> Response | None:

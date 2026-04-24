@@ -49,7 +49,7 @@ def test_cross_origin_browser_post_is_blocked():
     )
 
     assert response.status_code == 403
-    assert "Cross-origin" in response.text
+    assert "This boundary held." in response.text
     client.close()
 
 
@@ -67,5 +67,5 @@ def test_unsafe_http_methods_are_blocked_before_routing():
     response = client.request("TRACE", "/")
 
     assert response.status_code == 405
-    assert response.json()["detail"] == "Method not allowed"
+    assert "Wrong motion for this route." in response.text
     client.close()
