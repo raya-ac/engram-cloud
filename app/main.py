@@ -17,8 +17,10 @@ from app.auth import current_user_id, login_required, oauth
 from app.config import settings
 from app.db import Base, SessionLocal, engine
 from app.engram_service import (
+    close_workspace_runtimes,
     init_workspace_store,
     schema_name_for_slug,
+    workspace_runtime_stats,
     slugify,
     workspace_recent_memories,
     workspace_remember,
@@ -529,6 +531,11 @@ def startup() -> None:
     Base.metadata.create_all(engine)
 
 
+@app.on_event("shutdown")
+def shutdown() -> None:
+    close_workspace_runtimes()
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     if current_user_id(request):
@@ -589,6 +596,7 @@ async def api_service_status():
             "database": "postgres",
             "features": len(SERVICE_FEATURES),
             "base_url": settings.base_url,
+            "runtime_cache": workspace_runtime_stats(),
         }
     )
 

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import re
+import threading
+import time
+from collections import OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
@@ -8,7 +12,6 @@ from sqlalchemy import text
 
 from engram.config import Config
 from engram.mcp_server import MCPServer
-from engram.store import Store
 
 from app.config import settings
 from app.db import engine
@@ -25,6 +28,29 @@ TOOL_METHODS = {
     "hotspots": "_hotspots",
     "compare_queries": "_compare_queries",
 }
+
+MAX_WORKSPACE_RUNTIMES = 16
+RUNTIME_IDLE_TTL_SECONDS = 60 * 30
+
+
+@dataclass
+class WorkspaceRuntime:
+    schema_name: str
+    config: Config
+    server: MCPServer
+    lock: threading.RLock
+    last_used_at: float
+
+    @property
+    def store(self):
+        return self.server.store
+
+    def close(self) -> None:
+        self.server.store.close()
+
+
+_runtime_cache: OrderedDict[str, WorkspaceRuntime] = OrderedDict()
+_runtime_cache_lock = threading.RLock()
 
 
 def slugify(value: str) -> str:
@@ -59,45 +85,108 @@ def workspace_config(schema_name: str) -> Config:
     return cfg
 
 
-def init_workspace_store(schema_name: str) -> None:
+def _close_runtime(runtime: WorkspaceRuntime) -> None:
+    try:
+        with runtime.lock:
+            runtime.close()
+    except Exception:
+        pass
+
+
+def _prune_runtime_cache(now: float) -> None:
+    expired = [
+        schema_name
+        for schema_name, runtime in _runtime_cache.items()
+        if now - runtime.last_used_at > RUNTIME_IDLE_TTL_SECONDS
+    ]
+    for schema_name in expired:
+        _close_runtime(_runtime_cache.pop(schema_name))
+
+    while len(_runtime_cache) > MAX_WORKSPACE_RUNTIMES:
+        _schema_name, runtime = _runtime_cache.popitem(last=False)
+        _close_runtime(runtime)
+
+
+def workspace_runtime(schema_name: str) -> WorkspaceRuntime:
     ensure_workspace_schema(schema_name)
-    store = Store(workspace_config(schema_name))
-    store.init_db()
-    store.close()
+    now = time.monotonic()
+    with _runtime_cache_lock:
+        runtime = _runtime_cache.get(schema_name)
+        if runtime:
+            runtime.last_used_at = now
+            _runtime_cache.move_to_end(schema_name)
+            return runtime
+
+        cfg = workspace_config(schema_name)
+        server = MCPServer(cfg)
+        runtime = WorkspaceRuntime(
+            schema_name=schema_name,
+            config=cfg,
+            server=server,
+            lock=threading.RLock(),
+            last_used_at=now,
+        )
+        _runtime_cache[schema_name] = runtime
+        _prune_runtime_cache(now)
+        return runtime
+
+
+def close_workspace_runtimes() -> None:
+    with _runtime_cache_lock:
+        while _runtime_cache:
+            _schema_name, runtime = _runtime_cache.popitem(last=False)
+            _close_runtime(runtime)
+
+
+def workspace_runtime_stats() -> dict:
+    now = time.monotonic()
+    with _runtime_cache_lock:
+        return {
+            "cached_workspaces": len(_runtime_cache),
+            "max_cached_workspaces": MAX_WORKSPACE_RUNTIMES,
+            "idle_ttl_seconds": RUNTIME_IDLE_TTL_SECONDS,
+            "schemas": [
+                {
+                    "schema": runtime.schema_name,
+                    "idle_seconds": round(now - runtime.last_used_at, 3),
+                }
+                for runtime in _runtime_cache.values()
+            ],
+        }
+
+
+def init_workspace_store(schema_name: str) -> None:
+    runtime = workspace_runtime(schema_name)
+    with runtime.lock:
+        runtime.store.init_db()
 
 
 def workspace_status(schema_name: str) -> dict:
-    store = Store(workspace_config(schema_name))
-    try:
-        return store.get_stats()
-    finally:
-        store.close()
+    runtime = workspace_runtime(schema_name)
+    with runtime.lock:
+        return runtime.store.get_stats()
 
 
 def workspace_search(schema_name: str, query: str, top_k: int = 8) -> list[dict]:
-    server = MCPServer(workspace_config(schema_name))
-    try:
-        return server._recall({"query": query, "top_k": top_k, "mode": "full_context"})
-    finally:
-        server.store.close()
+    runtime = workspace_runtime(schema_name)
+    with runtime.lock:
+        return runtime.server._recall({"query": query, "top_k": top_k, "mode": "full_context"})
 
 
 def workspace_remember(schema_name: str, content: str, layer: str = "episodic", memory_type: str = "narrative") -> dict:
-    server = MCPServer(workspace_config(schema_name))
-    try:
-        return server._remember({
+    runtime = workspace_runtime(schema_name)
+    with runtime.lock:
+        return runtime.server._remember({
             "content": content,
             "layer": layer,
             "memory_type": memory_type,
             "source_type": "remember:human",
         })
-    finally:
-        server.store.close()
 
 
 def workspace_recent_memories(schema_name: str, limit: int = 10) -> list[dict]:
-    store = Store(workspace_config(schema_name))
-    try:
+    runtime = workspace_runtime(schema_name)
+    with runtime.lock:
         return [
             {
                 "id": m.id,
@@ -106,10 +195,8 @@ def workspace_recent_memories(schema_name: str, limit: int = 10) -> list[dict]:
                 "importance": m.importance,
                 "created_at": m.created_at,
             }
-            for m in store.get_recent_memories(limit=limit)
+            for m in runtime.store.get_recent_memories(limit=limit)
         ]
-    finally:
-        store.close()
 
 
 def workspace_tool_call(schema_name: str, tool_name: str, args: dict | None = None):
@@ -117,9 +204,7 @@ def workspace_tool_call(schema_name: str, tool_name: str, args: dict | None = No
     if not method_name:
         raise ValueError(f"Unsupported tool: {tool_name}")
 
-    server = MCPServer(workspace_config(schema_name))
-    try:
-        method = getattr(server, method_name)
+    runtime = workspace_runtime(schema_name)
+    with runtime.lock:
+        method = getattr(runtime.server, method_name)
         return method(args or {})
-    finally:
-        server.store.close()

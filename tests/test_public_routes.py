@@ -25,6 +25,7 @@ def test_public_service_metadata_routes():
     assert service_status.status_code == 200
     assert service_status.json()["service"] == "memorylayer"
     assert service_status.json()["features"] >= 20
+    assert "runtime_cache" in service_status.json()
 
     robots = client.get("/robots.txt")
     assert robots.status_code == 200

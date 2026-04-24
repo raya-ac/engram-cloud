@@ -47,6 +47,7 @@ For the actual memory runtime, a VPS is the clean default.
 - ingestion run history with source metadata and item counts
 - JSON endpoints for search, remember, status, recent memories, audit history, and usage history
 - recent memory export endpoint for backups and inspection
+- warm workspace runtime cache so search and memory writes do not rebuild Engram state on every request
 - workspace bootstrap endpoint for agents
 - hosted MCP-style bridge for selected Engram tools
 - starter skill downloads in JSON and markdown
@@ -159,6 +160,6 @@ The service also exposes starter skills:
 Public service metadata:
 
 - `GET /api/health`
-- `GET /api/service/status`
+- `GET /api/service/status` including runtime cache metrics
 - `GET /robots.txt`
 - `GET /sitemap.xml`
