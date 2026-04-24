@@ -29,6 +29,7 @@ from app.engram_service import (
     workspace_status,
     workspace_tool_call,
 )
+from app.hardening import RequestGuardMiddleware, SecurityHeadersMiddleware
 from app.models import (
     AuditEvent,
     User,
@@ -54,7 +55,16 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Engram Cloud", version="0.1.0", docs_url=None, redoc_url=None, lifespan=lifespan)
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestGuardMiddleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key,
+    https_only=settings.cookie_https_only(),
+    same_site="lax",
+    max_age=settings.session_max_age_seconds,
+    session_cookie="memorylayer_session",
+)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -848,6 +858,17 @@ def public_manifest() -> dict:
 
 CHANGELOG_ENTRIES = [
     {
+        "version": "Security hardening",
+        "date": "2026-04-24",
+        "changes": [
+            "Added global security headers: CSP, frame blocking, nosniff, referrer policy, permissions policy, and HSTS on HTTPS.",
+            "Added host allow-list enforcement, browser origin checks for state-changing workspace routes, and request body size limits.",
+            "Hardened session cookie settings with a dedicated cookie name, SameSite=Lax, configurable HTTPS-only cookies, and a bounded session lifetime.",
+            "Added basic auth/API throttles plus input bounds for workspace names, queries, memory content, ingest payloads, labels, roles, and API limits.",
+            "Expanded security tests to cover headers, bad hosts, and cross-origin form blocking.",
+        ],
+    },
+    {
         "version": "Editorial visual reset",
         "date": "2026-04-24",
         "changes": [
@@ -959,6 +980,21 @@ def normalize_layer(value: str | None) -> str:
 
 def normalize_memory_type(value: str | None) -> str:
     return value if value in {"narrative", "fact", "procedure"} else "narrative"
+
+
+def bounded_text(value: str, field_name: str, max_chars: int) -> str:
+    cleaned = value.strip()
+    if len(cleaned) > max_chars:
+        raise HTTPException(status_code=400, detail=f"{field_name} is limited to {max_chars} characters")
+    return cleaned
+
+
+def bounded_int(value, default: int, minimum: int, maximum: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, min(parsed, maximum))
 
 
 def split_ingest_text(raw_text: str, mode: str = "auto", max_items: int = 80) -> list[str]:
@@ -1313,9 +1349,9 @@ def render_workspace_env(workspace: Workspace, token_hint: str = "engram_...") -
 
 def api_key_from_request(authorization: str | None, x_api_key: str | None) -> str | None:
     if x_api_key:
-        return x_api_key.strip()
+        return x_api_key.strip()[:512]
     if authorization and authorization.lower().startswith("bearer "):
-        return authorization[7:].strip()
+        return authorization[7:].strip()[:512]
     return None
 
 
@@ -1687,6 +1723,7 @@ async def dashboard(request: Request):
 @login_required
 async def create_workspace(request: Request, name: str = Form(...)):
     user_id = current_user_id(request)
+    name = bounded_text(name, "workspace name", 80)
     slug = slugify(name)
     schema_name = schema_name_for_slug(slug)
     db = SessionLocal()
@@ -1743,6 +1780,7 @@ async def workspace_page(request: Request, slug: str):
 @login_required
 async def workspace_search_view(request: Request, slug: str, query: str = Form(...)):
     user_id = current_user_id(request)
+    query = bounded_text(query, "query", 500)
     db = SessionLocal()
     try:
         ws, _membership = _load_membership_for_user(db, user_id, slug)
@@ -1770,6 +1808,7 @@ async def workspace_remember_view(
     memory_type: str = Form("narrative"),
 ):
     user_id = current_user_id(request)
+    content = bounded_text(content, "content", 20_000)
     db = SessionLocal()
     try:
         ws, membership = _load_membership_for_user(db, user_id, slug)
@@ -1804,6 +1843,9 @@ async def workspace_ingest_view(
     upload: UploadFile | None = File(default=None),
 ):
     user_id = current_user_id(request)
+    source_name = bounded_text(source_name, "source_name", 180)
+    source_type = bounded_text(source_type, "source_type", 80)
+    ingest_text = bounded_text(ingest_text, "ingest_text", 200_000)
     db = SessionLocal()
     try:
         ws, membership = _load_membership_for_user(db, user_id, slug)
@@ -1811,8 +1853,8 @@ async def workspace_ingest_view(
         file_text = ""
         file_name = ""
         if upload and upload.filename:
-            file_name = upload.filename
-            file_text = (await upload.read()).decode("utf-8", errors="replace")
+            file_name = bounded_text(upload.filename, "filename", 180)
+            file_text = bounded_text((await upload.read()).decode("utf-8", errors="replace"), "uploaded file", 200_000)
         raw_text = "\n\n".join(part for part in [ingest_text.strip(), file_text.strip()] if part)
         chunks = split_ingest_text(raw_text, mode=split_mode)
         run = ingest_workspace_items(
@@ -1850,6 +1892,8 @@ async def create_workspace_invite(
     role: str = Form("member"),
 ):
     user_id = current_user_id(request)
+    email = bounded_text(email, "email", 180)
+    role = role if role in {"member", "editor", "admin"} else "member"
     db = SessionLocal()
     try:
         ws, membership = _load_membership_for_user(db, user_id, slug)
@@ -1887,6 +1931,7 @@ async def create_workspace_invite(
 @login_required
 async def create_workspace_key(request: Request, slug: str, label: str = Form(...)):
     user_id = current_user_id(request)
+    label = bounded_text(label, "label", 80)
     db = SessionLocal()
     try:
         ws, membership = _load_membership_for_user(db, user_id, slug)
@@ -1895,7 +1940,7 @@ async def create_workspace_key(request: Request, slug: str, label: str = Form(..
         api_key = WorkspaceApiKey(
             workspace_id=ws.id,
             created_by_user_id=user_id,
-            label=label.strip(),
+            label=label,
             token_prefix=token_prefix,
             token_hash=token_hash,
         )
@@ -2056,9 +2101,10 @@ async def api_workspace_recent(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/memories/recent", "GET", metadata={"limit": limit})
+        safe_limit = bounded_int(limit, default=10, minimum=1, maximum=100)
+        record_api_event(db, workspace.id, api_key.id, "/memories/recent", "GET", metadata={"limit": safe_limit})
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "memories": workspace_recent_memories(workspace.schema_name, limit=limit)})
+        return JSONResponse({"workspace": workspace.slug, "memories": workspace_recent_memories(workspace.schema_name, limit=safe_limit)})
     finally:
         db.close()
 
@@ -2071,8 +2117,8 @@ async def api_workspace_search(
     x_api_key: str | None = Header(default=None),
 ):
     payload = await request.json()
-    query = (payload.get("query") or "").strip()
-    top_k = int(payload.get("top_k") or 8)
+    query = bounded_text(payload.get("query") or "", "query", 500)
+    top_k = bounded_int(payload.get("top_k"), default=8, minimum=1, maximum=50)
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
     db = SessionLocal()
@@ -2093,7 +2139,7 @@ async def api_workspace_remember(
     x_api_key: str | None = Header(default=None),
 ):
     payload = await request.json()
-    content = (payload.get("content") or "").strip()
+    content = bounded_text(payload.get("content") or "", "content", 20_000)
     layer = payload.get("layer") or "episodic"
     memory_type = payload.get("memory_type") or "narrative"
     if not content:
@@ -2132,16 +2178,19 @@ async def api_workspace_ingest(
     x_api_key: str | None = Header(default=None),
 ):
     payload = await request.json()
-    source_name = (payload.get("source_name") or "api import").strip()
-    source_type = (payload.get("source_type") or "json").strip()
+    source_name = bounded_text(payload.get("source_name") or "api import", "source_name", 180)
+    source_type = bounded_text(payload.get("source_type") or "json", "source_type", 80)
     layer = normalize_layer(payload.get("layer"))
     memory_type = normalize_memory_type(payload.get("memory_type"))
     split_mode = payload.get("split_mode") or "auto"
     items = payload.get("items")
     if isinstance(items, list):
-        ingest_items = [json.dumps(item, ensure_ascii=False) if not isinstance(item, str) else item for item in items]
+        ingest_items = [
+            bounded_text(json.dumps(item, ensure_ascii=False) if not isinstance(item, str) else item, "ingest item", 20_000)
+            for item in items[:100]
+        ]
     else:
-        ingest_items = split_ingest_text(str(payload.get("content") or ""), mode=split_mode)
+        ingest_items = split_ingest_text(bounded_text(str(payload.get("content") or ""), "content", 200_000), mode=split_mode)
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
@@ -2200,9 +2249,10 @@ async def api_workspace_audit(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/audit", "GET", metadata={"limit": limit})
+        safe_limit = bounded_int(limit, default=25, minimum=1, maximum=100)
+        record_api_event(db, workspace.id, api_key.id, "/audit", "GET", metadata={"limit": safe_limit})
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "events": _workspace_audit_feed(db, workspace.id, limit=limit)})
+        return JSONResponse({"workspace": workspace.slug, "events": _workspace_audit_feed(db, workspace.id, limit=safe_limit)})
     finally:
         db.close()
 
@@ -2217,9 +2267,10 @@ async def api_workspace_ingest_runs(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/ingest/runs", "GET", metadata={"limit": limit})
+        safe_limit = bounded_int(limit, default=25, minimum=1, maximum=100)
+        record_api_event(db, workspace.id, api_key.id, "/ingest/runs", "GET", metadata={"limit": safe_limit})
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "runs": _workspace_ingest_runs(db, workspace.id, limit=limit)})
+        return JSONResponse({"workspace": workspace.slug, "runs": _workspace_ingest_runs(db, workspace.id, limit=safe_limit)})
     finally:
         db.close()
 
@@ -2234,7 +2285,7 @@ async def api_workspace_export_recent(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        safe_limit = max(1, min(limit, 250))
+        safe_limit = bounded_int(limit, default=100, minimum=1, maximum=250)
         record_api_event(db, workspace.id, api_key.id, "/export/recent", "GET", metadata={"limit": safe_limit})
         db.commit()
         return JSONResponse(
@@ -2258,13 +2309,14 @@ async def api_workspace_usage(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/usage", "GET", metadata={"limit": limit})
+        safe_limit = bounded_int(limit, default=50, minimum=1, maximum=100)
+        record_api_event(db, workspace.id, api_key.id, "/usage", "GET", metadata={"limit": safe_limit})
         db.commit()
         return JSONResponse(
             {
                 "workspace": workspace.slug,
                 "summary": _workspace_api_usage_summary(db, workspace.id),
-                "events": _workspace_api_usage_feed(db, workspace.id, limit=limit),
+                "events": _workspace_api_usage_feed(db, workspace.id, limit=safe_limit),
             }
         )
     finally:
@@ -2373,8 +2425,10 @@ async def api_workspace_mcp(
     x_api_key: str | None = Header(default=None),
 ):
     payload = await request.json()
-    tool_name = payload.get("tool")
+    tool_name = bounded_text(payload.get("tool") or "", "tool", 80)
     args = payload.get("args") or {}
+    if not isinstance(args, dict):
+        raise HTTPException(status_code=400, detail="args must be an object")
     if not tool_name:
         raise HTTPException(status_code=400, detail="tool is required")
 

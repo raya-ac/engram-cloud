@@ -55,6 +55,7 @@ For the actual memory runtime, a VPS is the clean default.
 - SDK snippet and playbook pages plus JSON endpoints
 - API explorer with request and response fixtures for client builders
 - workspace connection kit endpoints for agent config JSON and `.env` generation
+- hardened browser and API boundary with CSP, frame blocking, host/origin checks, request-size limits, safer session cookies, and basic throttles
 - starter skill downloads in JSON and markdown
 - public docs, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
@@ -109,6 +110,15 @@ Required:
 - `ENGRAM_CLOUD_ENGRAM_POSTGRES_DSN`
 - `ENGRAM_CLOUD_GITHUB_CLIENT_ID`
 - `ENGRAM_CLOUD_GITHUB_CLIENT_SECRET`
+
+Security controls:
+
+- `ENGRAM_CLOUD_ALLOWED_HOSTS`
+- `ENGRAM_CLOUD_SECURE_COOKIES`
+- `ENGRAM_CLOUD_SESSION_MAX_AGE_SECONDS`
+- `ENGRAM_CLOUD_MAX_REQUEST_BYTES`
+- `ENGRAM_CLOUD_AUTH_RATE_LIMIT_PER_MINUTE`
+- `ENGRAM_CLOUD_API_RATE_LIMIT_PER_MINUTE`
 
 ## Storage model
 

@@ -5,7 +5,7 @@
   <div class="hero-copy">
     <div class="eyebrow">Security posture</div>
     <h2>Small surface, clear boundaries.</h2>
-    <p>Memorylayer keeps the service model narrow: GitHub identity, workspace-scoped keys, hashed secrets, audit trails, and Postgres-backed isolation.</p>
+    <p>Memorylayer keeps the service model narrow: GitHub identity, workspace-scoped keys, hashed secrets, hardened browser boundaries, audit trails, and Postgres-backed isolation.</p>
     <div class="nav" style="margin-top:18px">
       <a href="/docs" class="button">API docs</a>
       <a href="/status" class="button primary">Service status</a>
@@ -15,18 +15,18 @@
     <div class="runtime-strip">
       <span>identity</span>
       <span>keys</span>
-      <span>isolate</span>
+      <span>headers</span>
       <span>audit</span>
     </div>
     <div class="hero-flow">
       <div class="flow-card"><div class="flow-index">01 / Identity</div><div><strong>GitHub only</strong><p>Users authenticate through GitHub OAuth, so Memorylayer does not store passwords.</p></div></div>
       <div class="flow-card"><div class="flow-index">02 / Keys</div><div><strong>Scoped tokens</strong><p>Workspace API keys are shown once, hashed at rest, and revocable independently.</p></div></div>
-      <div class="flow-card"><div class="flow-index">03 / Isolation</div><div><strong>Separate schemas</strong><p>Each workspace maps to its own Engram schema and service boundary.</p></div></div>
+      <div class="flow-card"><div class="flow-index">03 / Browser</div><div><strong>Locked down</strong><p>CSP, frame blocking, host checks, and origin checks reduce browser-side attack paths.</p></div></div>
       <div class="flow-card"><div class="flow-index">04 / Audit</div><div><strong>Visible activity</strong><p>Memory writes, bridge calls, invites, keys, and usage events are recorded.</p></div></div>
     </div>
     <div class="signal-stack">
       <div class="signal-line"><strong>No passwords</strong><span>GitHub OAuth handles user authentication.</span></div>
-      <div class="signal-line"><strong>Scoped keys</strong><span>Workspace API keys can be revoked independently.</span></div>
+      <div class="signal-line"><strong>Request guards</strong><span>Browser writes check origin, host, request size, and session policy.</span></div>
       <div class="signal-line"><strong>Auditability</strong><span>Memory writes, bridge calls, invites, keys, and usage are recorded.</span></div>
     </div>
   </div>
@@ -46,6 +46,9 @@
     <tr><td>API keys</td><td>Tokens are shown once, stored as hashes, and scoped to one workspace.</td><td>Use separate keys per agent or integration.</td></tr>
     <tr><td>Revocation</td><td>Keys can be revoked from the workspace dashboard.</td><td>Rotate keys when an integration changes hands.</td></tr>
     <tr><td>Isolation</td><td>Each workspace uses its own Engram schema.</td><td>Create separate workspaces for separate projects or teams.</td></tr>
+    <tr><td>Browser hardening</td><td>CSP, frame blocking, nosniff, referrer policy, permissions policy, and HSTS on HTTPS.</td><td>Keep custom embeds and third-party scripts out of the service surface.</td></tr>
+    <tr><td>Request guards</td><td>Host allow-list, browser origin checks, body-size limits, and basic auth/API throttles.</td><td>Set allowed hosts and rate limits in deployment environment variables.</td></tr>
+    <tr><td>Session cookies</td><td>Signed, HTTP-only Starlette sessions with SameSite=Lax and HTTPS-only cookies in production.</td><td>Use a long random secret and rotate after suspected compromise.</td></tr>
     <tr><td>Usage</td><td>Authenticated calls are recorded with route, key, status, and timestamp.</td><td>Review usage before rotating or deleting keys.</td></tr>
     <tr><td>Audit</td><td>Workspace actions and bridge calls write audit entries.</td><td>Use the audit feed to explain state changes.</td></tr>
   </tbody>
