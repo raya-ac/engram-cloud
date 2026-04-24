@@ -200,3 +200,5 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
         assert db.execute(select(AuditEvent).where(AuditEvent.workspace_id == workspace.id)).scalars().all()
     finally:
         db.close()
+        client.close()
+        engine.dispose()

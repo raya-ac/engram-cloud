@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
+from datetime import timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
@@ -37,11 +38,22 @@ from app.models import (
     WorkspaceIngestRun,
     WorkspaceInvite,
     WorkspaceMember,
+    utc_now,
 )
 from app.security import digest_token, mint_prefixed_token
 
 
-app = FastAPI(title="Engram Cloud", version="0.1.0", docs_url=None, redoc_url=None)
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    Base.metadata.create_all(engine)
+    try:
+        yield
+    finally:
+        close_workspace_runtimes()
+
+
+app = FastAPI(title="Engram Cloud", version="0.1.0", docs_url=None, redoc_url=None, lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -509,7 +521,7 @@ def resolve_api_workspace(db, slug: str, token: str) -> WorkspaceApiKey:
     ).scalar_one_or_none()
     if not api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    api_key.last_used_at = datetime.utcnow()
+    api_key.last_used_at = utc_now()
     db.commit()
     return api_key
 
@@ -523,17 +535,6 @@ def safe_workspace_snapshot(schema_name: str, recent_limit: int = 4) -> tuple[di
             [],
             str(exc),
         )
-
-
-@app.on_event("startup")
-def startup() -> None:
-    settings.data_dir.mkdir(parents=True, exist_ok=True)
-    Base.metadata.create_all(engine)
-
-
-@app.on_event("shutdown")
-def shutdown() -> None:
-    close_workspace_runtimes()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -878,7 +879,7 @@ async def create_workspace_invite(
             email=email.strip() or None,
             role=role,
             token_hash=token_hash,
-            expires_at=datetime.utcnow() + timedelta(days=14),
+            expires_at=utc_now() + timedelta(days=14),
         )
         db.add(invite)
         record_audit_event(
@@ -948,7 +949,7 @@ async def revoke_workspace_key(request: Request, slug: str, key_id: str):
         ).scalar_one_or_none()
         if not api_key:
             raise HTTPException(status_code=404, detail="API key not found")
-        api_key.revoked_at = datetime.utcnow()
+        api_key.revoked_at = utc_now()
         record_audit_event(
             db,
             workspace_id=ws.id,
@@ -983,7 +984,7 @@ async def invite_page(request: Request, token: str):
         if not invite:
             raise HTTPException(status_code=404, detail="Invite not found")
         invite_row, workspace, inviter = invite
-        if invite_row.expires_at and invite_row.expires_at < datetime.utcnow():
+        if invite_row.expires_at and invite_row.expires_at < utc_now():
             raise HTTPException(status_code=410, detail="Invite expired")
         existing = db.execute(
             select(WorkspaceMember).where(
@@ -1021,7 +1022,7 @@ async def accept_invite(request: Request, token: str):
         if not invite:
             raise HTTPException(status_code=404, detail="Invite not found")
         invite_row, workspace = invite
-        if invite_row.expires_at and invite_row.expires_at < datetime.utcnow():
+        if invite_row.expires_at and invite_row.expires_at < utc_now():
             raise HTTPException(status_code=410, detail="Invite expired")
         existing = db.execute(
             select(WorkspaceMember).where(
@@ -1031,7 +1032,7 @@ async def accept_invite(request: Request, token: str):
         ).scalar_one_or_none()
         if not existing:
             db.add(WorkspaceMember(workspace_id=workspace.id, user_id=user_id, role=invite_row.role))
-        invite_row.accepted_at = datetime.utcnow()
+        invite_row.accepted_at = utc_now()
         record_audit_event(
             db,
             workspace_id=workspace.id,
@@ -1257,7 +1258,7 @@ async def api_workspace_export_recent(
         return JSONResponse(
             {
                 "workspace": workspace.slug,
-                "exported_at": datetime.utcnow().isoformat(),
+                "exported_at": utc_now().isoformat(),
                 "memories": workspace_recent_memories(workspace.schema_name, limit=safe_limit),
             }
         )

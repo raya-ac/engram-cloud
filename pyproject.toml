@@ -34,3 +34,9 @@ dev = [
 
 [tool.setuptools]
 packages = ["app"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+  "error",
+  "ignore:authlib.jose module is deprecated.*:authlib.deprecate.AuthlibDeprecationWarning",
+]
