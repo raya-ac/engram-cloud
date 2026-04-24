@@ -156,6 +156,114 @@ INTEGRATION_RECIPES = [
 ]
 
 
+SDK_SNIPPETS = [
+    {
+        "name": "JavaScript fetch",
+        "language": "javascript",
+        "summary": "Call the hosted bridge from a Node or browser-side tool runner.",
+        "code": """const response = await fetch(`${MEMORYLAYER_URL}/api/workspaces/${SLUG}/mcp`, {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${MEMORYLAYER_KEY}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    tool: "recall_context",
+    args: { query: "current project state", max_tokens: 1200 }
+  })
+});
+
+const payload = await response.json();
+console.log(payload.result);""",
+    },
+    {
+        "name": "Python requests",
+        "language": "python",
+        "summary": "Use Memorylayer from scripts, workers, or custom agent harnesses.",
+        "code": """import os
+import requests
+
+base = os.environ["MEMORYLAYER_URL"]
+slug = os.environ["SLUG"]
+key = os.environ["MEMORYLAYER_KEY"]
+
+response = requests.post(
+    f"{base}/api/workspaces/{slug}/mcp",
+    headers={"Authorization": f"Bearer {key}"},
+    json={"tool": "session_checkpoint", "args": {"note": "handoff saved", "limit": 8}},
+    timeout=30,
+)
+response.raise_for_status()
+print(response.json()["result"])""",
+    },
+    {
+        "name": "Shell recall",
+        "language": "shell",
+        "summary": "Small curl call for debugging keys and tool output.",
+        "code": """curl -X POST \\
+  -H "Authorization: Bearer $MEMORYLAYER_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"tool":"recall_hints","args":{"query":"billing work","top_k":5}}' \\
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/mcp" """,
+    },
+    {
+        "name": "Agent bootstrap",
+        "language": "shell",
+        "summary": "Fetch workspace-specific URLs, skills, headers, and tool discovery.",
+        "code": """curl -H "Authorization: Bearer $MEMORYLAYER_KEY" \\
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/bootstrap" """,
+    },
+    {
+        "name": "Batch ingest",
+        "language": "shell",
+        "summary": "Push a small handoff or imported dataset into workspace memory.",
+        "code": """curl -X POST \\
+  -H "Authorization: Bearer $MEMORYLAYER_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"source_name":"handoff.md","source_type":"handoff","items":["Shipped manifest endpoints","Next: test onboarding"],"memory_type":"fact"}' \\
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/ingest" """,
+    },
+    {
+        "name": "MCP manifest client",
+        "language": "javascript",
+        "summary": "Build a tool picker from the public MCP manifest.",
+        "code": """const manifest = await fetch(`${MEMORYLAYER_URL}/api/mcp/manifest`).then((r) => r.json());
+for (const group of manifest.tool_groups) {
+  console.log(group.name, group.tools.map((tool) => tool.name));
+}""",
+    },
+]
+
+
+PLAYBOOKS = [
+    {
+        "name": "New agent session",
+        "steps": ["Fetch bootstrap", "Load resume_context", "Call get_skills", "Use recall_context", "Save session_checkpoint"],
+        "outcome": "The agent starts with useful state and leaves a handoff behind.",
+    },
+    {
+        "name": "Repository handoff",
+        "steps": ["Ingest summary", "remember_project", "remember_decision", "session_handoff", "export recent"],
+        "outcome": "A repo can be picked up by another session without reading stale chat logs.",
+    },
+    {
+        "name": "Memory cleanup",
+        "steps": ["quality_metrics", "dedup", "batch_tag", "promote/demote", "status_history"],
+        "outcome": "Operators can keep the workspace useful instead of letting memories rot.",
+    },
+    {
+        "name": "Investigation pivot",
+        "steps": ["search_entities", "entity_graph", "recall_related", "backlinks", "focus_brief"],
+        "outcome": "A single entity becomes a navigable map of prior work.",
+    },
+    {
+        "name": "Client onboarding",
+        "steps": ["service manifest", "MCP manifest", "capability JSON", "copy SDK snippet", "test status"],
+        "outcome": "A custom client can wire itself without hardcoded docs.",
+    },
+]
+
+
 CAPABILITY_GROUPS = [
     {
         "name": "Agent runtime",
@@ -397,6 +505,66 @@ CAPABILITY_GROUPS = [
             "handoff recipe",
         ],
     },
+    {
+        "name": "SDK snippets",
+        "items": [
+            "JavaScript fetch snippet",
+            "Python requests snippet",
+            "shell recall snippet",
+            "agent bootstrap snippet",
+            "batch ingest snippet",
+            "manifest client snippet",
+            "copy buttons",
+            "language labels",
+            "snippet JSON endpoint",
+            "SDK page",
+        ],
+    },
+    {
+        "name": "Playbooks",
+        "items": [
+            "new agent session",
+            "repository handoff",
+            "memory cleanup",
+            "investigation pivot",
+            "client onboarding",
+            "ordered steps",
+            "expected outcomes",
+            "operator-facing copy",
+            "agent-facing workflow",
+            "playbook JSON endpoint",
+        ],
+    },
+    {
+        "name": "Observability",
+        "items": [
+            "route-level usage",
+            "key-level usage",
+            "event feed",
+            "audit feed",
+            "runtime cache status",
+            "service status JSON",
+            "workspace status endpoint",
+            "health tool",
+            "quality metrics tool",
+            "access pattern tool",
+        ],
+    },
+    {
+        "name": "Onboarding",
+        "items": [
+            "environment variables",
+            "bootstrap-first flow",
+            "tool manifest flow",
+            "capability sync flow",
+            "copyable examples",
+            "free service explanation",
+            "GitHub sign-in path",
+            "workspace key path",
+            "starter skill path",
+            "OpenAPI path",
+        ],
+    },
 ]
 
 
@@ -417,11 +585,14 @@ def public_manifest() -> dict:
             "agents": f"{settings.base_url}/agents",
             "capabilities": f"{settings.base_url}/capabilities",
             "examples": f"{settings.base_url}/examples",
+            "sdks": f"{settings.base_url}/sdks",
             "status": f"{settings.base_url}/status",
             "openapi": f"{settings.base_url}/openapi.json",
             "service_status": f"{settings.base_url}/api/service/status",
             "capabilities_json": f"{settings.base_url}/api/capabilities",
             "mcp_manifest": f"{settings.base_url}/api/mcp/manifest",
+            "sdk_snippets": f"{settings.base_url}/api/sdk-snippets",
+            "playbooks": f"{settings.base_url}/api/playbooks",
         },
         "counts": {
             "features": len(SERVICE_FEATURES),
@@ -429,6 +600,8 @@ def public_manifest() -> dict:
             "mcp_tools": len(SUPPORTED_TOOLS),
             "tool_groups": len(grouped_tool_list()),
             "recipes": len(INTEGRATION_RECIPES),
+            "sdk_snippets": len(SDK_SNIPPETS),
+            "playbooks": len(PLAYBOOKS),
             "skills": len(STARTER_SKILLS),
         },
     }
@@ -868,6 +1041,8 @@ async def home(request: Request):
         tool_groups=grouped_tool_list(),
         capability_groups=CAPABILITY_GROUPS,
         capability_count=capability_count(),
+        sdk_snippets=SDK_SNIPPETS,
+        playbooks=PLAYBOOKS,
     )
 
 
@@ -882,6 +1057,8 @@ async def agents_page(request: Request):
         tool_groups=grouped_tool_list(),
         capability_groups=CAPABILITY_GROUPS,
         capability_count=capability_count(),
+        sdk_snippets=SDK_SNIPPETS,
+        playbooks=PLAYBOOKS,
     )
 
 
@@ -902,6 +1079,8 @@ async def docs_page(request: Request):
         recipes=INTEGRATION_RECIPES,
         capability_groups=CAPABILITY_GROUPS,
         capability_count=capability_count(),
+        sdk_snippets=SDK_SNIPPETS,
+        playbooks=PLAYBOOKS,
         openapi_url=f"{settings.base_url}/openapi.json",
     )
 
@@ -916,6 +1095,8 @@ async def capabilities_page(request: Request):
         features=SERVICE_FEATURES,
         capability_groups=CAPABILITY_GROUPS,
         capability_count=capability_count(),
+        sdk_snippets=SDK_SNIPPETS,
+        playbooks=PLAYBOOKS,
     )
 
 
@@ -932,6 +1113,17 @@ async def status_page(request: Request):
 @app.get("/examples", response_class=HTMLResponse)
 async def examples_page(request: Request):
     return render(request, "examples.html", recipes=INTEGRATION_RECIPES, manifest=public_manifest())
+
+
+@app.get("/sdks", response_class=HTMLResponse)
+async def sdks_page(request: Request):
+    return render(
+        request,
+        "sdks.html",
+        snippets=SDK_SNIPPETS,
+        playbooks=PLAYBOOKS,
+        manifest=public_manifest(),
+    )
 
 
 @app.get("/changelog", response_class=HTMLResponse)
@@ -952,6 +1144,8 @@ async def api_service_status():
             "mcp_tools": len(SUPPORTED_TOOLS),
             "tool_groups": len(grouped_tool_list()),
             "recipes": len(INTEGRATION_RECIPES),
+            "sdk_snippets": len(SDK_SNIPPETS),
+            "playbooks": len(PLAYBOOKS),
             "base_url": settings.base_url,
             "runtime_cache": workspace_runtime_stats(),
         }
@@ -971,8 +1165,20 @@ async def api_capabilities():
             "capability_groups": CAPABILITY_GROUPS,
             "features": SERVICE_FEATURES,
             "recipes": INTEGRATION_RECIPES,
+            "sdk_snippets": SDK_SNIPPETS,
+            "playbooks": PLAYBOOKS,
         }
     )
+
+
+@app.get("/api/sdk-snippets")
+async def api_sdk_snippets():
+    return JSONResponse({**public_manifest(), "sdk_snippets": SDK_SNIPPETS})
+
+
+@app.get("/api/playbooks")
+async def api_playbooks():
+    return JSONResponse({**public_manifest(), "playbooks": PLAYBOOKS})
 
 
 @app.get("/api/mcp/manifest")
@@ -1006,6 +1212,7 @@ async def sitemap_xml():
         "docs",
         "capabilities",
         "examples",
+        "sdks",
         "security",
         "status",
         "changelog",
@@ -1013,6 +1220,8 @@ async def sitemap_xml():
         "api/service/manifest",
         "api/capabilities",
         "api/mcp/manifest",
+        "api/sdk-snippets",
+        "api/playbooks",
     ]
     body = "\n".join(
         f"  <url><loc>{settings.base_url}/{route}</loc></url>" if route else f"  <url><loc>{settings.base_url}/</loc></url>"

@@ -118,6 +118,24 @@
 
 <section class="section-title fade-reveal">
   <div>
+    <h2>Copy the client shape</h2>
+    <p class="subtle">SDK snippets and playbooks are part of the service now, available as pages and JSON.</p>
+  </div>
+  <a href="/sdks" class="button">View SDK patterns</a>
+</section>
+
+<section class="grid three fade-reveal">
+  {% for snippet in sdk_snippets[:3] %}
+  <div class="surface-block">
+    <h3>{{ snippet.name }}</h3>
+    <p>{{ snippet.summary }}</p>
+    <div class="badge-row"><span class="badge">{{ snippet.language }}</span></div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
     <h2>Capability map</h2>
     <p class="subtle">A clearer inventory of the pieces agents and operators can use today.</p>
   </div>

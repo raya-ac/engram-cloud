@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}SDKs · Memorylayer{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">SDK patterns</div>
+      <h2>Copy the wire format.</h2>
+      <p>Memorylayer does not need a heavy client library to be useful. These snippets show the exact calls agents, scripts, and custom dashboards need.</p>
+      <div class="nav" style="margin-top:18px">
+        <a href="/api/sdk-snippets" class="button">Snippet JSON</a>
+        <a href="/api/playbooks" class="button">Playbook JSON</a>
+        <a href="/docs" class="button primary">Read docs</a>
+      </div>
+      <div class="public-rail">
+        <div>
+          <strong>{{ snippets|length }}</strong>
+          <p class="subtle">ready-to-copy snippets for common clients</p>
+        </div>
+        <div>
+          <strong>{{ playbooks|length }}</strong>
+          <p class="subtle">operator and agent workflows</p>
+        </div>
+        <div>
+          <strong>0</strong>
+          <p class="subtle">required vendor SDKs; HTTP is enough</p>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>fetch</span>
+        <span>python</span>
+        <span>curl</span>
+        <span>manifest</span>
+      </div>
+      <div class="signal-stack">
+        <div class="signal-line"><strong>Headers</strong><span>Authorization: Bearer or X-API-Key</span></div>
+        <div class="signal-line"><strong>Body</strong><span>{ tool, args } for bridge calls</span></div>
+        <div class="signal-line"><strong>Discovery</strong><span>Use manifests to render clients without hardcoding</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Snippets</h2>
+    <p class="subtle">These are deliberately plain. They match the service contract exactly.</p>
+  </div>
+</section>
+
+<section class="section-stack">
+  {% for snippet in snippets %}
+  <div class="detail-block fade-reveal">
+    <div class="detail-grid">
+      <div>
+        <h3>{{ snippet.name }}</h3>
+        <p class="subtle">{{ snippet.summary }}</p>
+        <div class="badge-row"><span class="badge">{{ snippet.language }}</span></div>
+      </div>
+      <div class="copy-row">
+        <div class="code-block" id="sdk-snippet-{{ loop.index }}">{{ snippet.code }}</div>
+        <button class="button copy-button" data-copy="#sdk-snippet-{{ loop.index }}" type="button">Copy</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Playbooks</h2>
+    <p class="subtle">Use these as implementation checklists for agent clients and workspace operators.</p>
+  </div>
+</section>
+
+<section class="grid two fade-reveal">
+  {% for playbook in playbooks %}
+  <div class="surface-block">
+    <h3>{{ playbook.name }}</h3>
+    <p>{{ playbook.outcome }}</p>
+    <div class="badge-row">
+      {% for step in playbook.steps %}
+      <span class="badge">{{ step }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

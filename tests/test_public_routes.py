@@ -7,7 +7,7 @@ client = TestClient(app)
 
 
 def test_public_service_pages_render():
-    for path in ("/", "/agents", "/docs", "/capabilities", "/examples", "/security", "/status", "/changelog"):
+    for path in ("/", "/agents", "/docs", "/capabilities", "/examples", "/sdks", "/security", "/status", "/changelog"):
         response = client.get(path)
         assert response.status_code == 200
     docs = client.get("/docs")
@@ -21,6 +21,9 @@ def test_public_service_pages_render():
     capabilities = client.get("/capabilities")
     assert "Capability ledger" in capabilities.text
     assert "dream consolidation" in capabilities.text
+    sdks = client.get("/sdks")
+    assert "JavaScript fetch" in sdks.text
+    assert "New agent session" in sdks.text
     pricing = client.get("/pricing", follow_redirects=False)
     assert pricing.status_code == 302
     assert pricing.headers["location"] == "/docs"
@@ -35,6 +38,8 @@ def test_public_service_metadata_routes():
     assert service_status.json()["mcp_tools"] >= 50
     assert service_status.json()["tool_groups"] >= 6
     assert service_status.json()["recipes"] >= 10
+    assert service_status.json()["sdk_snippets"] >= 6
+    assert service_status.json()["playbooks"] >= 5
     assert "runtime_cache" in service_status.json()
 
     manifest = client.get("/api/service/manifest")
@@ -45,11 +50,21 @@ def test_public_service_metadata_routes():
     capabilities = client.get("/api/capabilities")
     assert capabilities.status_code == 200
     assert any(group["name"] == "Discovery APIs" for group in capabilities.json()["capability_groups"])
+    assert capabilities.json()["sdk_snippets"]
+    assert capabilities.json()["playbooks"]
 
     mcp_manifest = client.get("/api/mcp/manifest")
     assert mcp_manifest.status_code == 200
     assert mcp_manifest.json()["transport"] == "http-json"
     assert any(group["name"] == "Retrieval" for group in mcp_manifest.json()["tool_groups"])
+
+    snippets = client.get("/api/sdk-snippets")
+    assert snippets.status_code == 200
+    assert any(snippet["language"] == "python" for snippet in snippets.json()["sdk_snippets"])
+
+    playbooks = client.get("/api/playbooks")
+    assert playbooks.status_code == 200
+    assert any(playbook["name"] == "Memory cleanup" for playbook in playbooks.json()["playbooks"])
 
     robots = client.get("/robots.txt")
     assert robots.status_code == 200
@@ -58,6 +73,8 @@ def test_public_service_metadata_routes():
     sitemap = client.get("/sitemap.xml")
     assert sitemap.status_code == 200
     assert "/api/mcp/manifest" in sitemap.text
+    assert "/api/sdk-snippets" in sitemap.text
+    assert "/sdks" in sitemap.text
     assert "/capabilities" in sitemap.text
     assert "/examples" in sitemap.text
     assert "/security" in sitemap.text
