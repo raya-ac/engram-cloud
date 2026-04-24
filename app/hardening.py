@@ -12,9 +12,28 @@ from app.config import settings
 
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+ALLOWED_METHODS = {"GET", "HEAD", "OPTIONS", "POST"}
 STATEFUL_BROWSER_PREFIXES = ("/app", "/logout")
 AUTH_PREFIXES = ("/login", "/auth")
 API_PREFIXES = ("/api/workspaces",)
+SUSPICIOUS_PATH_MARKERS = (
+    "..",
+    "%2e",
+    "%2f",
+    "%5c",
+    "\\",
+    "\x00",
+)
+COMMON_PROBE_SUFFIXES = (
+    ".php",
+    ".env",
+    ".git",
+    ".svn",
+    ".hg",
+    "wp-admin",
+    "wp-login",
+    "phpinfo",
+)
 
 
 def _client_ip(request: Request) -> str:
@@ -42,6 +61,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
         csp = [
             "default-src 'self'",
@@ -62,6 +82,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith(("/app", "/api/workspaces")):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         else:
             response.headers.setdefault("Cache-Control", "public, max-age=120")
         return response
@@ -73,7 +94,13 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
         self._buckets: dict[str, deque[float]] = defaultdict(deque)
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        blocked = self._validate_host(request) or self._validate_body_size(request) or self._validate_origin(request)
+        blocked = (
+            self._validate_method(request)
+            or self._validate_host(request)
+            or self._validate_path(request)
+            or self._validate_body_size(request)
+            or self._validate_origin(request)
+        )
         if blocked:
             return blocked
         limited = self._rate_limit(request)
@@ -81,10 +108,27 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
             return limited
         return await call_next(request)
 
+    def _validate_method(self, request: Request) -> Response | None:
+        if request.method not in ALLOWED_METHODS:
+            return JSONResponse({"detail": "Method not allowed"}, status_code=405, headers={"Allow": ", ".join(sorted(ALLOWED_METHODS))})
+        return None
+
     def _validate_host(self, request: Request) -> Response | None:
         host = _host_without_port(request.headers.get("host", ""))
         if host not in settings.host_allowlist():
             return PlainTextResponse("Invalid host", status_code=400)
+        return None
+
+    def _validate_path(self, request: Request) -> Response | None:
+        raw_path = request.scope.get("raw_path", b"")
+        raw = raw_path.decode("latin-1", errors="ignore").lower()
+        clean_path = request.url.path.lower()
+        if any(marker in raw for marker in SUSPICIOUS_PATH_MARKERS):
+            return PlainTextResponse("Bad request path", status_code=400)
+        if any(part.startswith(".") for part in clean_path.split("/") if part):
+            return PlainTextResponse("Bad request path", status_code=400)
+        if any(marker in clean_path for marker in COMMON_PROBE_SUFFIXES):
+            return PlainTextResponse("Not found", status_code=404)
         return None
 
     def _validate_body_size(self, request: Request) -> Response | None:

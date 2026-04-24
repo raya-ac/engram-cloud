@@ -51,3 +51,21 @@ def test_cross_origin_browser_post_is_blocked():
     assert response.status_code == 403
     assert "Cross-origin" in response.text
     client.close()
+
+
+def test_suspicious_python_server_probe_paths_are_blocked():
+    client = TestClient(app)
+
+    assert client.get("/%2e%2e/%2e%2e/etc/passwd").status_code == 400
+    assert client.get("/.env").status_code == 400
+    assert client.get("/wp-login.php").status_code == 404
+    client.close()
+
+
+def test_unsafe_http_methods_are_blocked_before_routing():
+    client = TestClient(app)
+    response = client.request("TRACE", "/")
+
+    assert response.status_code == 405
+    assert response.json()["detail"] == "Method not allowed"
+    client.close()

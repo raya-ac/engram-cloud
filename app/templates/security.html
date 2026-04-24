@@ -48,6 +48,8 @@
     <tr><td>Isolation</td><td>Each workspace uses its own Engram schema.</td><td>Create separate workspaces for separate projects or teams.</td></tr>
     <tr><td>Browser hardening</td><td>CSP, frame blocking, nosniff, referrer policy, permissions policy, and HSTS on HTTPS.</td><td>Keep custom embeds and third-party scripts out of the service surface.</td></tr>
     <tr><td>Request guards</td><td>Host allow-list, browser origin checks, body-size limits, and basic auth/API throttles.</td><td>Set allowed hosts and rate limits in deployment environment variables.</td></tr>
+    <tr><td>HTTP probes</td><td>Traversal markers, encoded path escapes, dotfiles, PHP probes, and unsafe methods are blocked before routing.</td><td>Treat repeated blocked probes as scanner traffic and rotate exposed keys if needed.</td></tr>
+    <tr><td>JSON handling</td><td>Workspace API JSON bodies must be valid objects; malformed calls with valid keys are recorded as failed usage events.</td><td>Monitor 400-series usage spikes as integration or abuse signals.</td></tr>
     <tr><td>Session cookies</td><td>Signed, HTTP-only Starlette sessions with SameSite=Lax and HTTPS-only cookies in production.</td><td>Use a long random secret and rotate after suspected compromise.</td></tr>
     <tr><td>Usage</td><td>Authenticated calls are recorded with route, key, status, and timestamp.</td><td>Review usage before rotating or deleting keys.</td></tr>
     <tr><td>Audit</td><td>Workspace actions and bridge calls write audit entries.</td><td>Use the audit feed to explain state changes.</td></tr>

@@ -153,6 +153,14 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
     assert response.json()["result"]["status"] == "stored"
 
     response = client.post(
+        "/api/workspaces/flow-test/search",
+        headers={**headers, "Content-Type": "application/json"},
+        content="{bad json",
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid JSON body"
+
+    response = client.post(
         "/api/workspaces/flow-test/ingest",
         headers=headers,
         json={"source_name": "api.json", "items": ["epsilon", "zeta"], "memory_type": "fact"},
@@ -210,6 +218,13 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
         assert db.execute(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace.id)).scalars().all()
         assert db.execute(select(WorkspaceIngestRun).where(WorkspaceIngestRun.workspace_id == workspace.id)).scalars().all()
         assert db.execute(select(WorkspaceApiEvent).where(WorkspaceApiEvent.workspace_id == workspace.id)).scalars().all()
+        assert db.execute(
+            select(WorkspaceApiEvent).where(
+                WorkspaceApiEvent.workspace_id == workspace.id,
+                WorkspaceApiEvent.route == "/search",
+                WorkspaceApiEvent.status_code == 400,
+            )
+        ).scalar_one()
         assert db.execute(select(AuditEvent).where(AuditEvent.workspace_id == workspace.id)).scalars().all()
     finally:
         db.close()

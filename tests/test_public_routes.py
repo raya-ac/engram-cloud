@@ -117,6 +117,17 @@ def test_skills_endpoints_expose_json_and_markdown():
     assert "# Workspace Memory" in skill_md.text
 
 
+def test_not_found_page_uses_public_theme_but_api_stays_json():
+    missing = client.get("/definitely-missing")
+    assert missing.status_code == 404
+    assert "Memory has no path here." in missing.text
+    assert "Return home" in missing.text
+
+    api_missing = client.get("/api/definitely-missing")
+    assert api_missing.status_code == 404
+    assert api_missing.json()["detail"] == "Not found"
+
+
 def test_ingest_text_split_modes():
     assert split_ingest_text("one\n\ntwo", mode="paragraphs") == ["one", "two"]
     assert split_ingest_text("- one\n- two", mode="lines") == ["one", "two"]

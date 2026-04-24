@@ -55,7 +55,7 @@ For the actual memory runtime, a VPS is the clean default.
 - SDK snippet and playbook pages plus JSON endpoints
 - API explorer with request and response fixtures for client builders
 - workspace connection kit endpoints for agent config JSON and `.env` generation
-- hardened browser and API boundary with CSP, frame blocking, host/origin checks, request-size limits, safer session cookies, and basic throttles
+- hardened browser and API boundary with CSP, frame blocking, host/origin checks, request-size limits, safer session cookies, basic throttles, malformed JSON accounting, and probe-path blocking
 - starter skill downloads in JSON and markdown
 - public docs, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site

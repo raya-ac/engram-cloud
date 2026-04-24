@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from contextlib import asynccontextmanager
+from json import JSONDecodeError
 from datetime import timedelta
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadF
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import false, func, select
 from sqlalchemy import delete
@@ -46,6 +48,7 @@ from app.security import digest_token, mint_prefixed_token
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    settings.validate_runtime_security()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(engine)
     try:
@@ -67,6 +70,24 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: StarletteHTTPException):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    return templates.TemplateResponse(
+        request,
+        "not_found.html",
+        {
+            "request": request,
+            "settings": settings,
+            "current_user_id": current_user_id(request),
+            "flash": None,
+            "path": request.url.path,
+        },
+        status_code=404,
+    )
 
 
 SERVICE_FEATURES = [
@@ -858,6 +879,16 @@ def public_manifest() -> dict:
 
 CHANGELOG_ENTRIES = [
     {
+        "version": "HTTP probe hardening",
+        "date": "2026-04-24",
+        "changes": [
+            "Blocked common Python HTTP-server and reverse-proxy probe paths before routing: traversal markers, encoded path escapes, dotfiles, PHP probes, and unsafe methods.",
+            "Added strict JSON object parsing for workspace API routes and records malformed JSON requests when they include a valid workspace key.",
+            "Added production startup checks for unsafe HTTPS secrets.",
+            "Added a custom Memorylayer 404 page for public missing routes while keeping API 404s JSON-shaped.",
+        ],
+    },
+    {
         "version": "Security hardening",
         "date": "2026-04-24",
         "changes": [
@@ -995,6 +1026,63 @@ def bounded_int(value, default: int, minimum: int, maximum: int) -> int:
     except (TypeError, ValueError):
         parsed = default
     return max(minimum, min(parsed, maximum))
+
+
+async def json_payload(request: Request) -> dict:
+    try:
+        payload = await request.json()
+    except (JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="JSON body must be an object")
+    return payload
+
+
+def record_failed_api_request(
+    slug: str,
+    authorization: str | None,
+    x_api_key: str | None,
+    route: str,
+    method: str,
+    status_code: int,
+    error: str,
+) -> None:
+    db = SessionLocal()
+    try:
+        token = api_key_from_request(authorization, x_api_key)
+        if not token:
+            return
+        try:
+            api_key = resolve_api_workspace(db, slug, token)
+        except HTTPException:
+            db.rollback()
+            return
+        record_api_event(
+            db,
+            api_key.workspace_id,
+            api_key.id,
+            route,
+            method,
+            status_code=status_code,
+            metadata={"error": error},
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+async def workspace_json_payload(
+    request: Request,
+    slug: str,
+    authorization: str | None,
+    x_api_key: str | None,
+    route: str,
+) -> dict:
+    try:
+        return await json_payload(request)
+    except HTTPException as exc:
+        record_failed_api_request(slug, authorization, x_api_key, route, request.method, exc.status_code, str(exc.detail))
+        raise
 
 
 def split_ingest_text(raw_text: str, mode: str = "auto", max_items: int = 80) -> list[str]:
@@ -1654,9 +1742,18 @@ async def login_github(request: Request):
 
 @app.get("/auth/github/callback")
 async def github_callback(request: Request):
-    token = await oauth.github.authorize_access_token(request)
-    profile = await oauth.github.get("user", token=token)
-    user_data = profile.json()
+    try:
+        token = await oauth.github.authorize_access_token(request)
+        profile = await oauth.github.get("user", token=token)
+        user_data = profile.json()
+    except Exception:
+        request.session.clear()
+        set_flash(request, "error", "GitHub sign-in failed. Please try again.")
+        return RedirectResponse("/login", status_code=302)
+    if not user_data.get("id") or not user_data.get("login"):
+        request.session.clear()
+        set_flash(request, "error", "GitHub did not return a usable profile.")
+        return RedirectResponse("/login", status_code=302)
 
     db = SessionLocal()
     try:
@@ -2116,7 +2213,7 @@ async def api_workspace_search(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ):
-    payload = await request.json()
+    payload = await workspace_json_payload(request, slug, authorization, x_api_key, "/search")
     query = bounded_text(payload.get("query") or "", "query", 500)
     top_k = bounded_int(payload.get("top_k"), default=8, minimum=1, maximum=50)
     if not query:
@@ -2138,7 +2235,7 @@ async def api_workspace_remember(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ):
-    payload = await request.json()
+    payload = await workspace_json_payload(request, slug, authorization, x_api_key, "/remember")
     content = bounded_text(payload.get("content") or "", "content", 20_000)
     layer = payload.get("layer") or "episodic"
     memory_type = payload.get("memory_type") or "narrative"
@@ -2177,7 +2274,7 @@ async def api_workspace_ingest(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ):
-    payload = await request.json()
+    payload = await workspace_json_payload(request, slug, authorization, x_api_key, "/ingest")
     source_name = bounded_text(payload.get("source_name") or "api import", "source_name", 180)
     source_type = bounded_text(payload.get("source_type") or "json", "source_type", 80)
     layer = normalize_layer(payload.get("layer"))
@@ -2424,7 +2521,7 @@ async def api_workspace_mcp(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ):
-    payload = await request.json()
+    payload = await workspace_json_payload(request, slug, authorization, x_api_key, "/mcp")
     tool_name = bounded_text(payload.get("tool") or "", "tool", 80)
     args = payload.get("args") or {}
     if not isinstance(args, dict):

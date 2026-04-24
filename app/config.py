@@ -39,5 +39,12 @@ class Settings(BaseSettings):
             return self.secure_cookies
         return self.base_url.startswith("https://")
 
+    def validate_runtime_security(self) -> None:
+        production_like = self.base_url.startswith("https://")
+        if production_like and self.secret_key in {"dev-secret-change-me", "change-me"}:
+            raise RuntimeError("ENGRAM_CLOUD_SECRET_KEY must be changed before HTTPS deployment")
+        if production_like and len(self.secret_key) < 32:
+            raise RuntimeError("ENGRAM_CLOUD_SECRET_KEY must be at least 32 characters in production")
+
 
 settings = Settings()
