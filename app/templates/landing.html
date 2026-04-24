@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Memorylayer{% endblock %}
 {% block body %}
-<section class="hero" style="margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);padding:0 28px;">
-  <div class="hero-copy" style="max-width:1220px;margin:0 auto;width:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,0.9fr);gap:32px;">
-    <div style="padding:34px 0 40px;">
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
       <div class="eyebrow">Hosted memory runtime</div>
-      <div class="badge-row" style="margin-top:0;margin-bottom:12px">
+      <div class="badge-row hero-badges">
         <span class="badge">GitHub login</span>
         <span class="badge">Hosted MCP bridge</span>
         <span class="badge">Workspace isolation</span>
       </div>
-      <h2>Persistent memory for agents, behind one clean service.</h2>
-      <p>Memorylayer turns Engram into something agents can actually connect to: workspaces, API keys, a hosted bridge, bootstrap payloads, and a dashboard that keeps the runtime usable.</p>
+      <h2>Memory that stays with the agent.</h2>
+      <p>Hosted Engram workspaces with API keys, ingestion, usage trails, and a small bridge agents can connect to without carrying a local database around.</p>
       <div class="nav" style="margin-top:22px">
         <a href="/login/github" class="button primary">Create a workspace</a>
         <a href="/docs" class="button">Read docs</a>
@@ -32,8 +32,17 @@
       </div>
     </div>
     <div class="hero-visual">
+      <div class="runtime-strip">
+        <span>workspace</span>
+        <span>api key</span>
+        <span>ingest</span>
+        <span>recall</span>
+      </div>
       <div class="orbital-stage">
         <div class="orbital-core"></div>
+        <div class="memory-node node-a"></div>
+        <div class="memory-node node-b"></div>
+        <div class="memory-node node-c"></div>
       </div>
       <div class="signal-stack">
         <div class="signal-line">
