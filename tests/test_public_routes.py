@@ -67,6 +67,9 @@ def test_public_service_pages_render():
     assert "Session checkpoint" in api_explorer.text
     architecture = client.get("/architecture")
     assert "Thin cloud layer" in architecture.text
+    assert "Architecture specs" in architecture.text
+    assert "BAAI/bge-small-en-v1.5" in architecture.text
+    assert "cross-encoder/ms-marco-MiniLM-L-6-v2" in architecture.text
     assert "Request path" in architecture.text
     use_cases = client.get("/use-cases")
     assert "Memory workflows that survive handoff" in use_cases.text

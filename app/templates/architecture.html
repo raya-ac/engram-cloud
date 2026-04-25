@@ -5,7 +5,7 @@
   <div class="hero-copy">
     <div class="eyebrow">Architecture</div>
     <h2>Thin cloud layer. Real memory engine.</h2>
-    <p>Memorylayer keeps hosted concerns separate from Engram: identity, workspaces, API keys, audit trails, connection kits, and a small HTTP bridge.</p>
+    <p>Memorylayer keeps hosted concerns separate from Engram: identity, workspaces, API keys, audit trails, connection kits, and a small HTTP bridge. The memory runtime is Postgres-backed Engram with explicit embedding and reranker models.</p>
     <div class="nav" style="margin-top:18px">
       <a href="/connect" class="button primary">Connect an agent</a>
       <a href="/operations" class="button">Operate it</a>
@@ -30,6 +30,47 @@
       <div class="signal-line"><strong>Surface</strong><span>Public manifests, API examples, SDK snippets, and OpenAPI.</span></div>
     </div>
   </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Architecture specs.</h2>
+    <p class="subtle">The live service is a narrow hosted control plane around the Engram runtime. These are the concrete parts currently wired in this repo.</p>
+  </div>
+  <a href="/openapi.json" class="button">OpenAPI</a>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block">
+    <h3>Service runtime</h3>
+    <p>FastAPI app served by Uvicorn on port 8090 inside Docker, exposed locally on the VPS as `127.0.0.1:8090` behind the public domain.</p>
+    <div class="badge-row"><span class="badge">Python 3.12</span><span class="badge">FastAPI</span><span class="badge">Uvicorn</span></div>
+  </div>
+  <div class="surface-block">
+    <h3>Database</h3>
+    <p>Postgres 17 stores service metadata, users, workspaces, keys, usage events, audit events, ingest runs, and each workspace's Engram schema.</p>
+    <div class="badge-row"><span class="badge">Postgres 17</span><span class="badge">SQLAlchemy</span><span class="badge">psycopg</span></div>
+  </div>
+  <div class="surface-block">
+    <h3>Memory package</h3>
+    <p>`engram-memory-system>=0.5.2` provides the store, retrieval, graph, curation, session handoff, and MCP-compatible tool layer.</p>
+    <div class="badge-row"><span class="badge">Engram</span><span class="badge">MCP bridge</span><span class="badge">workspace cache</span></div>
+  </div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Models used.</h2>
+    <p class="subtle">These are the memory models exposed by Engram's current config defaults, with the hosted service overriding storage to Postgres.</p>
+  </div>
+</section>
+
+<section class="terminal-surface fade-reveal">
+  <div class="terminal-row"><span>embedding</span><div>`BAAI/bge-small-en-v1.5` creates dense vectors for semantic memory search.</div></div>
+  <div class="terminal-row"><span>dimension</span><div>`384` dimensions per embedding vector.</div></div>
+  <div class="terminal-row"><span>reranker</span><div>`cross-encoder/ms-marco-MiniLM-L-6-v2` is the cross-encoder reranker model when reranking is available.</div></div>
+  <div class="terminal-row"><span>backend</span><div>`embedding_backend = auto`; the container installs CPU PyTorch before the Engram package.</div></div>
+  <div class="terminal-row"><span>storage</span><div>Engram defaults to SQLite locally, but Memorylayer sets `storage_backend = postgres` and injects a workspace schema DSN.</div></div>
 </section>
 
 <section class="section-title fade-reveal">
@@ -72,5 +113,20 @@
   <div class="surface-block"><h3>Postgres</h3><p>App metadata plus per-workspace Engram schemas.</p></div>
   <div class="surface-block"><h3>Docker</h3><p>Repeatable VPS deployment with a narrow exposed port.</p></div>
   <div class="surface-block"><h3>Cloudflare</h3><p>Edge TLS and an extra layer against malformed probes.</p></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Runtime limits.</h2>
+    <p class="subtle">The app keeps the operational shape explicit so the memory process stays predictable.</p>
+  </div>
+</section>
+
+<section class="terminal-surface fade-reveal">
+  <div class="terminal-row"><span>cache</span><div>Up to `16` workspace runtimes are kept warm in-process.</div></div>
+  <div class="terminal-row"><span>ttl</span><div>Idle workspace runtimes are pruned after `1800` seconds.</div></div>
+  <div class="terminal-row"><span>payload</span><div>Default request body limit is `2,000,000` bytes before routing.</div></div>
+  <div class="terminal-row"><span>api limit</span><div>Default API throttle is `240` requests per minute per client bucket.</div></div>
+  <div class="terminal-row"><span>auth limit</span><div>Default auth throttle is `12` requests per minute per client bucket.</div></div>
 </section>
 {% endblock %}
