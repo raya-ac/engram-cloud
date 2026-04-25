@@ -76,6 +76,12 @@
       background: rgba(251, 250, 246, 0.82);
       box-shadow: 0 18px 60px rgba(38, 34, 24, 0.09);
     }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
     .brand { display: flex; gap: 12px; align-items: center; }
     .brand-mark {
       position: relative;
@@ -103,7 +109,8 @@
     .brand h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.035em; }
     .brand p { margin: 0; color: var(--soft); font-size: 11px; line-height: 1.1; }
     .nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .nav a, .button {
+    .topbar > .nav { flex: 1; justify-content: flex-end; }
+    .nav a, .button, .nav-menu summary, .topbar-actions > a {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -115,7 +122,7 @@
       cursor: pointer;
       transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
     }
-    .nav a:hover, .button:hover {
+    .nav a:hover, .button:hover, .nav-menu summary:hover, .topbar-actions > a:hover {
       border-color: rgba(17, 17, 15, 0.32);
       background: rgba(255, 255, 255, 0.86);
       box-shadow: 0 8px 22px rgba(38, 34, 24, 0.08);
@@ -127,6 +134,69 @@
       color: var(--accent-ink);
       font-weight: 600;
       box-shadow: 0 18px 36px rgba(17,17,15,0.16);
+    }
+    .topbar-actions > a {
+      white-space: nowrap;
+    }
+    .nav-menu {
+      position: relative;
+    }
+    .nav-menu summary {
+      list-style: none;
+      user-select: none;
+    }
+    .nav-menu summary::-webkit-details-marker { display: none; }
+    .nav-menu summary::after {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      transform: rotate(45deg) translateY(-2px);
+      opacity: 0.68;
+      transition: transform 160ms ease;
+    }
+    .nav-menu[open] summary {
+      border-color: rgba(17, 17, 15, 0.32);
+      background: rgba(255, 255, 255, 0.9);
+    }
+    .nav-menu[open] summary::after {
+      transform: rotate(225deg) translateY(-1px);
+    }
+    .nav-menu-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: min(320px, calc(100vw - 48px));
+      padding: 8px;
+      border: 1px solid rgba(17,17,15,0.14);
+      border-radius: 16px;
+      background: rgba(251,250,246,0.96);
+      box-shadow: 0 24px 70px rgba(38,34,24,0.16);
+      backdrop-filter: blur(24px);
+      animation: menu-in 140ms ease both;
+    }
+    .nav-menu-panel a {
+      display: grid;
+      gap: 2px;
+      padding: 10px 11px;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      line-height: 1.25;
+    }
+    .nav-menu-panel a:hover {
+      background: rgba(17,17,15,0.055);
+      box-shadow: none;
+      transform: none;
+    }
+    .nav-menu-panel strong {
+      font-size: 13px;
+      letter-spacing: -0.02em;
+    }
+    .nav-menu-panel span {
+      color: var(--soft);
+      font-size: 11px;
     }
     .hero {
       position: relative;
@@ -739,6 +809,10 @@
       from { opacity: 0; transform: translateY(18px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes menu-in {
+      from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
     @keyframes node-drift {
       0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.65; }
       50% { transform: translate3d(10px, -12px, 0) scale(1.35); opacity: 1; }
@@ -759,6 +833,15 @@
       .brand-mark::after { inset: 11px; }
       .brand h1 { font-size: 15px; }
       .brand p { display: none; }
+      .topbar-actions {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .topbar > .nav,
+      .topbar-actions {
+        width: 100%;
+      }
       .topbar > .nav {
         flex-wrap: nowrap;
         gap: 8px;
@@ -771,7 +854,8 @@
       }
       .topbar > .nav::-webkit-scrollbar { display: none; }
       .topbar > .nav a,
-      .topbar > .nav .button {
+      .topbar > .nav .button,
+      .topbar > .nav .nav-menu summary {
         flex: 0 0 auto;
         padding: 7px 10px;
         border-radius: 10px;
@@ -779,10 +863,26 @@
         line-height: 1.1;
         white-space: nowrap;
       }
-      .topbar > .nav .button.primary {
+      .topbar-actions .button.primary {
         max-width: 168px;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      .topbar-actions .button,
+      .topbar-actions > a {
+        justify-content: center;
+      }
+      .nav-menu {
+        flex: 0 0 auto;
+      }
+      .nav-menu-panel {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        top: 126px;
+        width: auto;
+        max-height: calc(100svh - 150px);
+        overflow-y: auto;
       }
       .hero-inner, .split, .grid.two, .grid.three, .grid.four, .detail-grid, .public-rail, .timeline-item, .copy-row, .capability-ledger, .capability-list { grid-template-columns: 1fr; }
       .hero:has(> .hero-copy) {
@@ -839,14 +939,21 @@
         <a href="/docs">Docs</a>
         <a href="/agents">Agents</a>
         <a href="/connect">Connect</a>
-        <a href="/architecture">Architecture</a>
-        <a href="/use-cases">Use cases</a>
-        <a href="/integrations">Integrations</a>
-        <a href="/capabilities">Capabilities</a>
-        <a href="/examples">Examples</a>
-        <a href="/api-explorer">API</a>
-        <a href="/sdks">SDKs</a>
-        <a href="/security">Security</a>
+        <details class="nav-menu">
+          <summary>Resources</summary>
+          <div class="nav-menu-panel">
+            <a href="/architecture"><strong>Architecture</strong><span>Runtime boundaries, schemas, and request path.</span></a>
+            <a href="/integrations"><strong>Integrations</strong><span>Codex, Claude, CI, scripts, and custom clients.</span></a>
+            <a href="/use-cases"><strong>Use cases</strong><span>Handoff, research, incidents, and automations.</span></a>
+            <a href="/capabilities"><strong>Capabilities</strong><span>Full service and agent-facing capability ledger.</span></a>
+            <a href="/examples"><strong>Examples</strong><span>Request and response fixtures for client builders.</span></a>
+            <a href="/api-explorer"><strong>API explorer</strong><span>Endpoint shapes and hosted bridge calls.</span></a>
+            <a href="/sdks"><strong>SDKs</strong><span>Copyable HTTP snippets and playbooks.</span></a>
+            <a href="/security"><strong>Security</strong><span>Boundary, headers, auth, and disclosure model.</span></a>
+          </div>
+        </details>
+      </div>
+      <div class="topbar-actions">
         {% if current_user_id %}
           <a href="/app">Dashboard</a>
           <a href="/logout">Log out</a>
@@ -882,6 +989,15 @@
         button.textContent = "Copied";
         setTimeout(() => { button.textContent = previous; }, 1200);
       });
+    });
+    document.addEventListener("click", (event) => {
+      document.querySelectorAll(".nav-menu[open]").forEach((menu) => {
+        if (!menu.contains(event.target)) menu.removeAttribute("open");
+      });
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      document.querySelectorAll(".nav-menu[open]").forEach((menu) => menu.removeAttribute("open"));
     });
   </script>
 </body>
