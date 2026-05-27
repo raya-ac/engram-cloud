@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import platform
 from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from json import JSONDecodeError
 from datetime import timedelta
+from importlib import metadata
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
@@ -14,6 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import false, func, select
 from sqlalchemy import delete
+from engram.config import Config
 
 from app.agent_catalog import STARTER_SKILLS, SUPPORTED_TOOLS, grouped_tool_list, render_skill_markdown, starter_skill_list
 from app.auth import current_user_id, login_required, oauth
@@ -46,6 +51,10 @@ from app.models import (
 from app.security import digest_token, mint_prefixed_token
 
 
+APP_VERSION = "0.2.0"
+DB_READINESS_TIMEOUT_SECONDS = 1.5
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     settings.validate_runtime_security()
@@ -57,7 +66,7 @@ async def lifespan(_app: FastAPI):
         close_workspace_runtimes()
 
 
-app = FastAPI(title="Engram Cloud", version="0.1.0", docs_url=None, redoc_url=None, lifespan=lifespan)
+app = FastAPI(title="Engram Cloud", version=APP_VERSION, docs_url=None, redoc_url=None, lifespan=lifespan)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestGuardMiddleware)
 app.add_middleware(
@@ -827,6 +836,36 @@ API_EXAMPLES = [
         },
     },
     {
+        "name": "Service architecture",
+        "method": "GET",
+        "path": "/api/service/architecture",
+        "auth": "public",
+        "summary": "Read the concrete runtime, storage, model, limit, and surface contract.",
+        "request": None,
+        "response": {
+            "service": {"name": "Memorylayer", "version": APP_VERSION},
+            "runtime": {"python": "3.12", "framework": {"name": "FastAPI"}},
+            "storage": {"metadata_database": "postgres", "workspace_backend": "postgres"},
+            "models": {"embedding_model": "BAAI/bge-small-en-v1.5", "embedding_dimensions": 384},
+        },
+    },
+    {
+        "name": "Service readiness",
+        "method": "GET",
+        "path": "/api/service/readiness",
+        "auth": "public",
+        "summary": "Run bounded checks for database, runtime cache, security posture, and public surface wiring.",
+        "request": None,
+        "response": {
+            "status": "ok",
+            "checks": [
+                {"name": "database", "status": "pass"},
+                {"name": "runtime_cache", "status": "pass"},
+                {"name": "public_surface", "status": "pass"},
+            ],
+        },
+    },
+    {
         "name": "MCP manifest",
         "method": "GET",
         "path": "/api/mcp/manifest",
@@ -951,10 +990,171 @@ def capability_count() -> int:
     return sum(len(group["items"]) for group in CAPABILITY_GROUPS)
 
 
+def package_version(package_name: str, fallback: str) -> str:
+    try:
+        return metadata.version(package_name)
+    except PackageNotFoundError:
+        return fallback
+
+
+def engram_model_contract() -> dict:
+    cfg = Config.load()
+    return {
+        "embedding_model": cfg.embedding_model,
+        "embedding_dimensions": cfg.embedding_dim,
+        "embedding_backend": cfg.embedding_backend,
+        "reranker_model": cfg.cross_encoder_model,
+        "local_default_storage_backend": cfg.storage_backend,
+        "hosted_storage_backend": "postgres",
+        "hosted_runtime": "CPU PyTorch container",
+    }
+
+
+def service_architecture_spec() -> dict:
+    runtime_cache = workspace_runtime_stats()
+    return {
+        "service": {
+            "name": "Memorylayer",
+            "package": "engram-cloud",
+            "version": APP_VERSION,
+            "base_url": settings.base_url,
+            "runtime_target": "vps",
+        },
+        "runtime": {
+            "language": "python",
+            "python": platform.python_version(),
+            "python_requires": ">=3.11",
+            "container_image": "python:3.12-slim",
+            "framework": {"name": "FastAPI", "version": package_version("fastapi", ">=0.115.0")},
+            "server": {"name": "Uvicorn", "version": package_version("uvicorn", ">=0.30.0"), "port": 8090},
+            "process_model": "long-lived ASGI app with warm workspace runtime cache",
+        },
+        "storage": {
+            "metadata_database": "postgres",
+            "metadata_driver": {
+                "orm": f"SQLAlchemy {package_version('sqlalchemy', '>=2.0.32')}",
+                "driver": f"psycopg {package_version('psycopg', '>=3.2.0')}",
+            },
+            "engram_package": f"engram-memory-system {package_version('engram-memory-system', '>=0.5.2')}",
+            "workspace_backend": "postgres",
+            "workspace_schema_pattern": "ws_<slug>",
+            "workspace_dsn_strategy": "Postgres search_path is scoped per workspace schema",
+        },
+        "models": engram_model_contract(),
+        "limits": {
+            "max_workspace_runtimes": runtime_cache["max_cached_workspaces"],
+            "idle_ttl_seconds": runtime_cache["idle_ttl_seconds"],
+            "max_request_bytes": settings.max_request_bytes,
+            "api_rate_limit_per_minute": settings.api_rate_limit_per_minute,
+            "auth_rate_limit_per_minute": settings.auth_rate_limit_per_minute,
+            "session_max_age_seconds": settings.session_max_age_seconds,
+        },
+        "security": {
+            "allowed_hosts": settings.host_allowlist(),
+            "secure_cookies": settings.cookie_https_only(),
+            "session_cookie": "memorylayer_session",
+            "same_site": "lax",
+            "request_guard": "host, path, method, body size, origin, and rate-limit checks before routing",
+            "headers": ["CSP", "HSTS on HTTPS", "X-Frame-Options", "X-Content-Type-Options", "Referrer-Policy"],
+        },
+        "surfaces": {
+            "public": [
+                "/api/service/status",
+                "/api/service/manifest",
+                "/api/service/architecture",
+                "/api/service/readiness",
+                "/api/mcp/manifest",
+                "/openapi.json",
+            ],
+            "workspace": [
+                "/api/workspaces/{slug}/bootstrap",
+                "/api/workspaces/{slug}/connect",
+                "/api/workspaces/{slug}/env",
+                "/api/workspaces/{slug}/mcp",
+                "/api/workspaces/{slug}/mcp/tools",
+                "/api/workspaces/{slug}/ingest",
+                "/api/workspaces/{slug}/usage",
+                "/api/workspaces/{slug}/audit",
+                "/api/workspaces/{slug}/export/recent",
+            ],
+        },
+    }
+
+
+def database_ping() -> None:
+    with engine.connect() as conn:
+        conn.execute(select(1)).scalar_one()
+
+
+def bounded_check(name: str, fn, timeout_seconds: float = DB_READINESS_TIMEOUT_SECONDS) -> dict:
+    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"readiness-{name}")
+    future = executor.submit(fn)
+    try:
+        future.result(timeout=timeout_seconds)
+        return {"name": name, "status": "pass"}
+    except FutureTimeout:
+        future.cancel()
+        return {"name": name, "status": "fail", "detail": "timeout"}
+    except Exception as exc:
+        return {"name": name, "status": "fail", "detail": exc.__class__.__name__}
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+
+def service_readiness() -> dict:
+    runtime_cache = workspace_runtime_stats()
+    manifest = public_manifest()
+    checks = [
+        bounded_check("database", database_ping),
+        {
+            "name": "runtime_cache",
+            "status": "pass"
+            if runtime_cache["cached_workspaces"] <= runtime_cache["max_cached_workspaces"]
+            else "fail",
+            "cached_workspaces": runtime_cache["cached_workspaces"],
+            "max_cached_workspaces": runtime_cache["max_cached_workspaces"],
+            "idle_ttl_seconds": runtime_cache["idle_ttl_seconds"],
+        },
+        {
+            "name": "security_config",
+            "status": "pass"
+            if settings.secret_key not in {"dev-secret-change-me", "change-me"} or not settings.base_url.startswith("https://")
+            else "fail",
+            "secure_cookies": settings.cookie_https_only(),
+            "allowed_hosts": settings.host_allowlist(),
+        },
+        {
+            "name": "public_surface",
+            "status": "pass"
+            if all(
+                key in manifest["routes"]
+                for key in ("service_status", "service_manifest", "service_architecture", "service_readiness", "mcp_manifest")
+            )
+            else "fail",
+            "routes": [
+                manifest["routes"]["service_status"],
+                manifest["routes"]["service_manifest"],
+                manifest["routes"]["service_architecture"],
+                manifest["routes"]["service_readiness"],
+            ],
+        },
+    ]
+    status = "ok" if all(check["status"] == "pass" for check in checks) else "degraded"
+    return {
+        "status": status,
+        "service": "memorylayer",
+        "version": APP_VERSION,
+        "base_url": settings.base_url,
+        "checks": checks,
+        "runtime_cache": runtime_cache,
+    }
+
+
 def public_manifest() -> dict:
     return {
         "service": "memorylayer",
         "name": "Memorylayer",
+        "version": APP_VERSION,
         "runtime": "vps",
         "database": "postgres",
         "base_url": settings.base_url,
@@ -974,6 +1174,9 @@ def public_manifest() -> dict:
             "status": f"{settings.base_url}/status",
             "openapi": f"{settings.base_url}/openapi.json",
             "service_status": f"{settings.base_url}/api/service/status",
+            "service_manifest": f"{settings.base_url}/api/service/manifest",
+            "service_architecture": f"{settings.base_url}/api/service/architecture",
+            "service_readiness": f"{settings.base_url}/api/service/readiness",
             "capabilities_json": f"{settings.base_url}/api/capabilities",
             "mcp_manifest": f"{settings.base_url}/api/mcp/manifest",
             "sdk_snippets": f"{settings.base_url}/api/sdk-snippets",
@@ -995,6 +1198,16 @@ def public_manifest() -> dict:
 
 
 CHANGELOG_ENTRIES = [
+    {
+        "version": "Service self-inspection",
+        "date": "2026-05-27",
+        "changes": [
+            "Added public architecture and readiness JSON endpoints so clients can inspect the live runtime, storage backend, models, limits, and health checks.",
+            "Wired the architecture and status pages to the same service contract used by API clients instead of duplicating static implementation details.",
+            "Expanded the service manifest, sitemap, and API examples with the new machine-readable self-inspection surfaces.",
+            "Bumped the app package version to 0.2.0.",
+        ],
+    },
     {
         "version": "Product page expansion",
         "date": "2026-04-24",
@@ -1669,6 +1882,7 @@ async def architecture_page(request: Request):
     return render(
         request,
         "architecture.html",
+        architecture=service_architecture_spec(),
         manifest=public_manifest(),
         tools=SUPPORTED_TOOLS,
         tool_groups=grouped_tool_list(),
@@ -1756,7 +1970,14 @@ async def security_page(request: Request):
 
 @app.get("/status", response_class=HTMLResponse)
 async def status_page(request: Request):
-    return render(request, "status.html", features=SERVICE_FEATURES)
+    return render(
+        request,
+        "status.html",
+        features=SERVICE_FEATURES,
+        manifest=public_manifest(),
+        readiness=service_readiness(),
+        architecture=service_architecture_spec(),
+    )
 
 
 @app.get("/examples", response_class=HTMLResponse)
@@ -1815,6 +2036,8 @@ async def api_service_status():
             "api_examples": len(API_EXAMPLES),
             "base_url": settings.base_url,
             "runtime_cache": workspace_runtime_stats(),
+            "architecture_url": f"{settings.base_url}/api/service/architecture",
+            "readiness_url": f"{settings.base_url}/api/service/readiness",
         }
     )
 
@@ -1822,6 +2045,17 @@ async def api_service_status():
 @app.get("/api/service/manifest")
 async def api_service_manifest():
     return JSONResponse(public_manifest())
+
+
+@app.get("/api/service/architecture")
+async def api_service_architecture():
+    return JSONResponse(service_architecture_spec())
+
+
+@app.get("/api/service/readiness")
+async def api_service_readiness():
+    readiness = service_readiness()
+    return JSONResponse(readiness, status_code=200 if readiness["status"] == "ok" else 503)
 
 
 @app.get("/api/capabilities")
@@ -1897,6 +2131,8 @@ async def sitemap_xml():
         "changelog",
         "login",
         "api/service/manifest",
+        "api/service/architecture",
+        "api/service/readiness",
         "api/capabilities",
         "api/mcp/manifest",
         "api/sdk-snippets",

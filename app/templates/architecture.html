@@ -9,6 +9,7 @@
     <div class="nav" style="margin-top:18px">
       <a href="/connect" class="button primary">Connect an agent</a>
       <a href="/operations" class="button">Operate it</a>
+      <a href="/api/service/architecture" class="button">Architecture JSON</a>
     </div>
   </div>
   <div class="hero-visual">
@@ -25,9 +26,9 @@
       <div class="flow-card"><div class="flow-index">04 / Engram</div><div><strong>Memory runtime</strong><p>Retrieval, graph, handoff, curation, and continuity stay inside the real engine.</p></div></div>
     </div>
     <div class="signal-stack">
-      <div class="signal-line"><strong>Runtime</strong><span>VPS-hosted FastAPI service with Postgres metadata.</span></div>
-      <div class="signal-line"><strong>Memory</strong><span>Workspace-specific Engram schemas and warm runtime cache.</span></div>
-      <div class="signal-line"><strong>Surface</strong><span>Public manifests, API examples, SDK snippets, and OpenAPI.</span></div>
+      <div class="signal-line"><strong>Runtime</strong><span>{{ architecture.runtime.framework.name }} {{ architecture.runtime.framework.version }} on {{ architecture.runtime.server.name }}.</span></div>
+      <div class="signal-line"><strong>Memory</strong><span>{{ architecture.storage.workspace_backend }} schemas using {{ architecture.models.embedding_model }}.</span></div>
+      <div class="signal-line"><strong>Surface</strong><span>{{ manifest.counts.api_examples }} examples, {{ manifest.counts.mcp_tools }} tools, OpenAPI, and manifests.</span></div>
     </div>
   </div>
 </section>
@@ -43,17 +44,17 @@
 <section class="grid three fade-reveal">
   <div class="surface-block">
     <h3>Service runtime</h3>
-    <p>FastAPI app served by Uvicorn on port 8090 inside Docker, exposed locally on the VPS as `127.0.0.1:8090` behind the public domain.</p>
-    <div class="badge-row"><span class="badge">Python 3.12</span><span class="badge">FastAPI</span><span class="badge">Uvicorn</span></div>
+    <p>{{ architecture.runtime.framework.name }} app served by {{ architecture.runtime.server.name }} on port {{ architecture.runtime.server.port }} inside Docker, exposed through {{ architecture.service.base_url }}.</p>
+    <div class="badge-row"><span class="badge">Python {{ architecture.runtime.python }}</span><span class="badge">{{ architecture.runtime.framework.name }}</span><span class="badge">{{ architecture.runtime.server.name }}</span></div>
   </div>
   <div class="surface-block">
     <h3>Database</h3>
-    <p>Postgres 17 stores service metadata, users, workspaces, keys, usage events, audit events, ingest runs, and each workspace's Engram schema.</p>
-    <div class="badge-row"><span class="badge">Postgres 17</span><span class="badge">SQLAlchemy</span><span class="badge">psycopg</span></div>
+    <p>{{ architecture.storage.metadata_database|title }} stores service metadata, users, workspaces, keys, usage events, audit events, ingest runs, and each workspace's Engram schema.</p>
+    <div class="badge-row"><span class="badge">{{ architecture.storage.metadata_database|title }}</span><span class="badge">{{ architecture.storage.metadata_driver.orm }}</span><span class="badge">{{ architecture.storage.metadata_driver.driver }}</span></div>
   </div>
   <div class="surface-block">
     <h3>Memory package</h3>
-    <p>`engram-memory-system>=0.5.2` provides the store, retrieval, graph, curation, session handoff, and MCP-compatible tool layer.</p>
+    <p>{{ architecture.storage.engram_package }} provides the store, retrieval, graph, curation, session handoff, and MCP-compatible tool layer.</p>
     <div class="badge-row"><span class="badge">Engram</span><span class="badge">MCP bridge</span><span class="badge">workspace cache</span></div>
   </div>
 </section>
@@ -66,11 +67,11 @@
 </section>
 
 <section class="terminal-surface fade-reveal">
-  <div class="terminal-row"><span>embedding</span><div>`BAAI/bge-small-en-v1.5` creates dense vectors for semantic memory search.</div></div>
-  <div class="terminal-row"><span>dimension</span><div>`384` dimensions per embedding vector.</div></div>
-  <div class="terminal-row"><span>reranker</span><div>`cross-encoder/ms-marco-MiniLM-L-6-v2` is the cross-encoder reranker model when reranking is available.</div></div>
-  <div class="terminal-row"><span>backend</span><div>`embedding_backend = auto`; the container installs CPU PyTorch before the Engram package.</div></div>
-  <div class="terminal-row"><span>storage</span><div>Engram defaults to SQLite locally, but Memorylayer sets `storage_backend = postgres` and injects a workspace schema DSN.</div></div>
+  <div class="terminal-row"><span>embedding</span><div><code>{{ architecture.models.embedding_model }}</code> creates dense vectors for semantic memory search.</div></div>
+  <div class="terminal-row"><span>dimension</span><div><code>{{ architecture.models.embedding_dimensions }}</code> dimensions per embedding vector.</div></div>
+  <div class="terminal-row"><span>reranker</span><div><code>{{ architecture.models.reranker_model }}</code> is the cross-encoder reranker model when reranking is available.</div></div>
+  <div class="terminal-row"><span>backend</span><div><code>embedding_backend = {{ architecture.models.embedding_backend }}</code>; the hosted runtime uses {{ architecture.models.hosted_runtime }}.</div></div>
+  <div class="terminal-row"><span>storage</span><div>Engram's local default is <code>{{ architecture.models.local_default_storage_backend }}</code>, but Memorylayer sets <code>storage_backend = {{ architecture.models.hosted_storage_backend }}</code> and injects a workspace schema DSN.</div></div>
 </section>
 
 <section class="section-title fade-reveal">
@@ -78,7 +79,10 @@
     <h2>Boundaries that matter.</h2>
     <p class="subtle">The hosted service does not pretend to be the memory system. It gives the memory system accounts, keys, URLs, and operational controls.</p>
   </div>
-  <a href="/api/service/manifest" class="button">Service manifest</a>
+  <div class="nav">
+    <a href="/api/service/manifest" class="button">Service manifest</a>
+    <a href="/api/service/readiness" class="button">Readiness JSON</a>
+  </div>
 </section>
 
 <section class="grid three fade-reveal">
@@ -109,10 +113,10 @@
 </section>
 
 <section class="grid four fade-reveal">
-  <div class="surface-block"><h3>FastAPI</h3><p>Public pages, workspace dashboard, OAuth, and JSON endpoints.</p></div>
-  <div class="surface-block"><h3>Postgres</h3><p>App metadata plus per-workspace Engram schemas.</p></div>
-  <div class="surface-block"><h3>Docker</h3><p>Repeatable VPS deployment with a narrow exposed port.</p></div>
-  <div class="surface-block"><h3>Cloudflare</h3><p>Edge TLS and an extra layer against malformed probes.</p></div>
+  <div class="surface-block"><h3>{{ architecture.runtime.framework.name }}</h3><p>Public pages, workspace dashboard, OAuth, and JSON endpoints.</p></div>
+  <div class="surface-block"><h3>{{ architecture.storage.metadata_database|title }}</h3><p>App metadata plus per-workspace Engram schemas with {{ architecture.storage.workspace_dsn_strategy|lower }}.</p></div>
+  <div class="surface-block"><h3>Docker</h3><p>Repeatable VPS deployment using {{ architecture.runtime.container_image }} and a narrow exposed port.</p></div>
+  <div class="surface-block"><h3>Surface</h3><p>{{ manifest.counts.skills }} starter skills, {{ manifest.counts.playbooks }} playbooks, and {{ manifest.counts.sdk_snippets }} SDK snippets.</p></div>
 </section>
 
 <section class="section-title fade-reveal">
@@ -123,10 +127,10 @@
 </section>
 
 <section class="terminal-surface fade-reveal">
-  <div class="terminal-row"><span>cache</span><div>Up to `16` workspace runtimes are kept warm in-process.</div></div>
-  <div class="terminal-row"><span>ttl</span><div>Idle workspace runtimes are pruned after `1800` seconds.</div></div>
-  <div class="terminal-row"><span>payload</span><div>Default request body limit is `2,000,000` bytes before routing.</div></div>
-  <div class="terminal-row"><span>api limit</span><div>Default API throttle is `240` requests per minute per client bucket.</div></div>
-  <div class="terminal-row"><span>auth limit</span><div>Default auth throttle is `12` requests per minute per client bucket.</div></div>
+  <div class="terminal-row"><span>cache</span><div>Up to <code>{{ architecture.limits.max_workspace_runtimes }}</code> workspace runtimes are kept warm in-process.</div></div>
+  <div class="terminal-row"><span>ttl</span><div>Idle workspace runtimes are pruned after <code>{{ architecture.limits.idle_ttl_seconds }}</code> seconds.</div></div>
+  <div class="terminal-row"><span>payload</span><div>Default request body limit is <code>{{ architecture.limits.max_request_bytes }}</code> bytes before routing.</div></div>
+  <div class="terminal-row"><span>api limit</span><div>Default API throttle is <code>{{ architecture.limits.api_rate_limit_per_minute }}</code> requests per minute per client bucket.</div></div>
+  <div class="terminal-row"><span>auth limit</span><div>Default auth throttle is <code>{{ architecture.limits.auth_rate_limit_per_minute }}</code> requests per minute per client bucket.</div></div>
 </section>
 {% endblock %}

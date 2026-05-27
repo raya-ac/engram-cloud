@@ -195,6 +195,8 @@ Public service metadata:
 
 - `GET /api/health`
 - `GET /api/service/status` including runtime cache metrics
+- `GET /api/service/architecture` for runtime, storage, model, limit, and route specs
+- `GET /api/service/readiness` for bounded database, cache, security, and surface checks
 - `GET /capabilities` for the public capability index
 - `GET /architecture`
 - `GET /use-cases`

@@ -68,9 +68,14 @@ def test_public_service_pages_render():
     architecture = client.get("/architecture")
     assert "Thin cloud layer" in architecture.text
     assert "Architecture specs" in architecture.text
+    assert "Architecture JSON" in architecture.text
     assert "BAAI/bge-small-en-v1.5" in architecture.text
     assert "cross-encoder/ms-marco-MiniLM-L-6-v2" in architecture.text
     assert "Request path" in architecture.text
+    status = client.get("/status")
+    assert "Readiness checks" in status.text
+    assert "/api/service/readiness" in status.text
+    assert "/api/service/architecture" in status.text
     use_cases = client.get("/use-cases")
     assert "Memory workflows that survive handoff" in use_cases.text
     assert "Repo continuity" in use_cases.text
@@ -96,12 +101,18 @@ def test_public_service_metadata_routes():
     assert service_status.json()["recipes"] >= 10
     assert service_status.json()["sdk_snippets"] >= 6
     assert service_status.json()["playbooks"] >= 5
-    assert service_status.json()["api_examples"] >= 12
+    assert service_status.json()["api_examples"] >= 14
     assert "runtime_cache" in service_status.json()
+    assert service_status.json()["architecture_url"].endswith("/api/service/architecture")
+    assert service_status.json()["readiness_url"].endswith("/api/service/readiness")
 
     manifest = client.get("/api/service/manifest")
     assert manifest.status_code == 200
+    assert manifest.json()["version"] == "0.2.0"
     assert manifest.json()["counts"]["capabilities"] >= 240
+    assert manifest.json()["routes"]["service_manifest"].endswith("/api/service/manifest")
+    assert manifest.json()["routes"]["service_architecture"].endswith("/api/service/architecture")
+    assert manifest.json()["routes"]["service_readiness"].endswith("/api/service/readiness")
     assert manifest.json()["routes"]["mcp_manifest"].endswith("/api/mcp/manifest")
     assert manifest.json()["routes"]["api_examples"].endswith("/api/examples")
     assert manifest.json()["routes"]["architecture"].endswith("/architecture")
@@ -121,6 +132,22 @@ def test_public_service_metadata_routes():
     assert mcp_manifest.json()["transport"] == "http-json"
     assert any(group["name"] == "Retrieval" for group in mcp_manifest.json()["tool_groups"])
 
+    service_architecture = client.get("/api/service/architecture")
+    assert service_architecture.status_code == 200
+    assert service_architecture.json()["service"]["version"] == "0.2.0"
+    assert service_architecture.json()["storage"]["workspace_backend"] == "postgres"
+    assert service_architecture.json()["models"]["embedding_model"] == "BAAI/bge-small-en-v1.5"
+    assert service_architecture.json()["models"]["embedding_dimensions"] == 384
+    assert service_architecture.json()["limits"]["max_workspace_runtimes"] == 16
+    assert "/api/service/readiness" in service_architecture.json()["surfaces"]["public"]
+
+    service_readiness = client.get("/api/service/readiness")
+    assert service_readiness.status_code in (200, 503)
+    readiness_payload = service_readiness.json()
+    assert readiness_payload["status"] in ("ok", "degraded")
+    assert any(check["name"] == "database" for check in readiness_payload["checks"])
+    assert any(check["name"] == "runtime_cache" for check in readiness_payload["checks"])
+
     snippets = client.get("/api/sdk-snippets")
     assert snippets.status_code == 200
     assert any(snippet["language"] == "python" for snippet in snippets.json()["sdk_snippets"])
@@ -133,6 +160,8 @@ def test_public_service_metadata_routes():
     assert api_examples.status_code == 200
     assert any(example["name"] == "Recall context" for example in api_examples.json()["api_examples"])
     assert any(example["name"] == "Connection kit" for example in api_examples.json()["api_examples"])
+    assert any(example["name"] == "Service architecture" for example in api_examples.json()["api_examples"])
+    assert any(example["name"] == "Service readiness" for example in api_examples.json()["api_examples"])
     assert any(example["path"] == "/api/workspaces/{slug}/ingest" for example in api_examples.json()["api_examples"])
 
     robots = client.get("/robots.txt")
@@ -142,6 +171,8 @@ def test_public_service_metadata_routes():
     sitemap = client.get("/sitemap.xml")
     assert sitemap.status_code == 200
     assert "/api/mcp/manifest" in sitemap.text
+    assert "/api/service/architecture" in sitemap.text
+    assert "/api/service/readiness" in sitemap.text
     assert "/api/sdk-snippets" in sitemap.text
     assert "/api/examples" in sitemap.text
     assert "/api-explorer" in sitemap.text
