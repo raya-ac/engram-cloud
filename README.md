@@ -44,11 +44,14 @@ For the actual memory runtime, a VPS is the clean default.
 - audit trail for workspace actions
 - structured API usage tracking per workspace key
 - paste, file, and batch API ingestion into workspace memory
+- ingest preview with markdown heading, CSV row, line, paragraph, JSON, and single-memory split modes
 - ingestion run history with source metadata and item counts
 - JSON endpoints for search, remember, status, recent memories, audit history, and usage history
+- workspace observability for latency, p95, failure rate, slow routes, runtime cache, and ingest health
 - recent memory export endpoint for backups and inspection
 - warm workspace runtime cache so search and memory writes do not rebuild Engram state on every request
 - workspace bootstrap endpoint for agents
+- Codex profile, Claude skill, and full agent config bundle exports per workspace
 - hosted MCP-style bridge for retrieval, handoff, skills, curation, and memory health tools
 - public capability index with 100+ service, site, and agent-facing capabilities
 - public service, capability, and MCP manifests for clients and agent launchers
@@ -60,6 +63,7 @@ For the actual memory runtime, a VPS is the clean default.
 - starter skill downloads in JSON and markdown
 - public docs, architecture, use-case, operations, integrations, examples, service status, security, and changelog pages
 - robots.txt and sitemap.xml for the public site
+- repeatable VPS deploy and live-check scripts
 
 ## Stack
 
@@ -142,8 +146,18 @@ Use:
 
 - `Dockerfile`
 - `docker-compose.yml`
+- `scripts/deploy.sh`
+- `scripts/live-check.sh`
 
 Run behind Caddy or nginx with HTTPS.
+
+Standard release path:
+
+```bash
+scripts/deploy.sh
+```
+
+That runs local verification, streams the current git archive to the VPS app directory, rebuilds the web container, restarts it, and verifies the live service. See [docs/deployment.md](docs/deployment.md).
 
 ### Vercel
 
@@ -164,13 +178,18 @@ Each workspace can expose:
 - `GET /api/workspaces/{slug}/bootstrap`
 - `GET /api/workspaces/{slug}/connect`
 - `GET /api/workspaces/{slug}/env`
+- `GET /api/workspaces/{slug}/agent-config`
+- `GET /api/workspaces/{slug}/codex.toml`
+- `GET /api/workspaces/{slug}/claude-skill.md`
 - `GET /api/workspaces/{slug}/status`
 - `GET /api/workspaces/{slug}/memories/recent`
 - `POST /api/workspaces/{slug}/search`
 - `POST /api/workspaces/{slug}/remember`
+- `POST /api/workspaces/{slug}/ingest/preview`
 - `POST /api/workspaces/{slug}/ingest`
 - `GET /api/workspaces/{slug}/audit`
 - `GET /api/workspaces/{slug}/usage`
+- `GET /api/workspaces/{slug}/observability`
 - `GET /api/workspaces/{slug}/ingest/runs`
 - `GET /api/workspaces/{slug}/export/recent`
 - `GET /api/workspaces/{slug}/mcp/tools`
@@ -197,6 +216,7 @@ Public service metadata:
 - `GET /api/service/status` including runtime cache metrics
 - `GET /api/service/architecture` for runtime, storage, model, limit, and route specs
 - `GET /api/service/readiness` for bounded database, cache, security, and surface checks
+- `GET /api/service/deploy-plan` for the release path and live verification contract
 - `GET /capabilities` for the public capability index
 - `GET /architecture`
 - `GET /use-cases`

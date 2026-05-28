@@ -146,6 +146,21 @@ X-API-Key: engram_...</div>
     <p class="subtle">Plain text environment variables for local agents and scripts.</p>
   </div>
   <div class="surface-block">
+    <h3>Agent config</h3>
+    <p><code>GET /api/workspaces/{slug}/agent-config</code></p>
+    <p class="subtle">Codex TOML, Claude skill markdown, env output, endpoints, and starter curl commands.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Codex profile</h3>
+    <p><code>GET /api/workspaces/{slug}/codex.toml</code></p>
+    <p class="subtle">A workspace-scoped profile for local launchers and Codex-side boot scripts.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Claude skill</h3>
+    <p><code>GET /api/workspaces/{slug}/claude-skill.md</code></p>
+    <p class="subtle">A markdown skill that teaches Claude-style agents the workspace startup and shutdown routine.</p>
+  </div>
+  <div class="surface-block">
     <h3>Search</h3>
     <p><code>POST /api/workspaces/{slug}/search</code></p>
     <p class="subtle">Run hosted retrieval without touching the underlying Engram runtime directly.</p>
@@ -161,6 +176,11 @@ X-API-Key: engram_...</div>
     <p class="subtle">Batch import pasted text, JSON items, or pipeline output into workspace memory.</p>
   </div>
   <div class="surface-block">
+    <h3>Ingest preview</h3>
+    <p><code>POST /api/workspaces/{slug}/ingest/preview</code></p>
+    <p class="subtle">Preview split count, sample chunks, and size before writing memory.</p>
+  </div>
+  <div class="surface-block">
     <h3>Recent</h3>
     <p><code>GET /api/workspaces/{slug}/memories/recent</code></p>
     <p class="subtle">Load the last memories written to the workspace.</p>
@@ -174,6 +194,11 @@ X-API-Key: engram_...</div>
     <h3>Usage</h3>
     <p><code>GET /api/workspaces/{slug}/usage</code></p>
     <p class="subtle">Read per-key API activity, route counts, and the latest service calls.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Observability</h3>
+    <p><code>GET /api/workspaces/{slug}/observability</code></p>
+    <p class="subtle">Read latency, p95, failure rate, slow routes, runtime cache, and recent ingest runs.</p>
   </div>
   <div class="surface-block">
     <h3>Ingest runs</h3>
@@ -195,7 +220,7 @@ X-API-Key: engram_...</div>
 <section class="section-title fade-reveal">
   <div>
     <h2>Ingestion payload</h2>
-    <p class="subtle">The batch ingest API accepts either an `items` array or a text `content` field with a split mode.</p>
+    <p class="subtle">The batch ingest API accepts either an `items` array or a text `content` field with a split mode: auto, paragraphs, lines, markdown, csv, single, or json.</p>
   </div>
 </section>
 

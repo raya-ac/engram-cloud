@@ -10,6 +10,7 @@
       <div class="nav" style="margin-top:18px">
         <a href="/status" class="button primary">Service status</a>
         <a href="/security" class="button">Security model</a>
+        <a href="/api/service/deploy-plan" class="button">Deploy plan</a>
       </div>
       <div class="public-rail">
         <div><strong>{{ features|length }}</strong><p class="subtle">service features tracked in the manifest</p></div>
@@ -51,6 +52,34 @@
   <div class="surface-block"><h3>Rotate keys</h3><p>Replace long-lived or shared keys with named, scoped keys per client.</p></div>
   <div class="surface-block"><h3>Check ingest</h3><p>Confirm large imports split cleanly and did not flood memory with duplicates.</p></div>
   <div class="surface-block"><h3>Save handoffs</h3><p>Require checkpoints at the end of agent sessions and long automations.</p></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Deploy path.</h2>
+    <p class="subtle">Releases should be boring: local verification, archive sync, rebuild, restart, then live checks.</p>
+  </div>
+  <a href="/api/service/deploy-plan" class="button">Deploy JSON</a>
+</section>
+
+<section class="terminal-surface fade-reveal">
+  <div class="terminal-row"><span>01 verify</span><div><code>git diff --check</code>, <code>python -m pytest -q</code>, and <code>python -m compileall app</code>.</div></div>
+  <div class="terminal-row"><span>02 sync</span><div><code>scripts/deploy.sh</code> streams the current git archive to the VPS app directory without copying secrets.</div></div>
+  <div class="terminal-row"><span>03 restart</span><div>The remote service runs <code>docker compose up -d --build web</code> against the preserved <code>.env</code> and data volume.</div></div>
+  <div class="terminal-row"><span>04 prove</span><div><code>scripts/live-check.sh</code> verifies readiness, architecture, manifest, and the rendered pages.</div></div>
+</section>
+
+<section class="section-title fade-reveal">
+  <div>
+    <h2>Observability contract.</h2>
+    <p class="subtle">Workspace operators can inspect latency, failure rate, slow routes, runtime cache, API volume, and ingestion history.</p>
+  </div>
+</section>
+
+<section class="grid three fade-reveal">
+  <div class="surface-block"><h3>Latency</h3><p>Workspace API events record route timing in metadata so slow searches and memory writes show up quickly.</p></div>
+  <div class="surface-block"><h3>Failure rate</h3><p>The observability endpoint samples recent calls and reports failed routes without exposing private memory content.</p></div>
+  <div class="surface-block"><h3>Ingest health</h3><p>Import runs stay visible beside runtime cache state, making large data loads easier to debug.</p></div>
 </section>
 
 <section class="section-title fade-reveal">

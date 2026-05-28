@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 import platform
+import time
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from json import JSONDecodeError
@@ -51,7 +54,7 @@ from app.models import (
 from app.security import digest_token, mint_prefixed_token
 
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 DB_READINESS_TIMEOUT_SECONDS = 1.5
 
 
@@ -233,10 +236,16 @@ SERVICE_FEATURES = [
     {"name": "File ingestion", "summary": "Upload a text, markdown, JSON, or CSV-like file and split it into memories."},
     {"name": "Batch ingest API", "summary": "Push many memories in one authenticated request."},
     {"name": "Import run history", "summary": "Track source, type, item count, and actor for each ingestion run."},
+    {"name": "Ingest preview", "summary": "Preview split counts, sample chunks, and payload size before writing memories."},
+    {"name": "Markdown and CSV splitting", "summary": "Split imports by headings, rows, lines, paragraphs, JSON items, or one memory."},
     {"name": "Recent export", "summary": "Download recent workspace memories as JSON for inspection or backup."},
     {"name": "Connection kits", "summary": "Generate workspace-specific client config, env blocks, and startup calls."},
     {"name": "Agent config API", "summary": "Expose a normalized JSON profile that agents can read on boot."},
+    {"name": "Codex profile export", "summary": "Generate a workspace-scoped TOML profile for Codex-side launchers."},
+    {"name": "Claude skill export", "summary": "Generate a workspace-specific markdown skill for Claude-style bootstrapping."},
     {"name": "Env template API", "summary": "Return a copyable .env block for local workers and agent launchers."},
+    {"name": "Workspace observability", "summary": "Expose latency, failures, slow routes, top routes, runtime cache, and ingestion history."},
+    {"name": "Deploy script", "summary": "Ship a repeatable archive-over-SSH deploy path for the VPS service."},
     {"name": "Connect page", "summary": "Document the shortest path from workspace key to working agent memory."},
     {"name": "Architecture guide", "summary": "Explain the hosted runtime, service metadata, workspace schemas, and Engram boundary."},
     {"name": "Use-case library", "summary": "Show practical memory workflows for coding agents, teams, incidents, research, and automations."},
@@ -919,6 +928,29 @@ API_EXAMPLES = [
         },
     },
     {
+        "name": "Agent config bundle",
+        "method": "GET",
+        "path": "/api/workspaces/{slug}/agent-config",
+        "auth": "workspace key",
+        "summary": "Fetch Codex profile text, Claude skill markdown, env output, curl setup commands, and endpoint URLs.",
+        "request": None,
+        "response": {
+            "workspace": {"slug": "demo"},
+            "codex_toml": "[memorylayer]\nworkspace = \"demo\"",
+            "claude_skill": "---\nname: memorylayer-demo",
+            "curl": {"bootstrap": "curl -H \"Authorization: Bearer engram_...\" ..."},
+        },
+    },
+    {
+        "name": "Ingest preview",
+        "method": "POST",
+        "path": "/api/workspaces/{slug}/ingest/preview",
+        "auth": "workspace key",
+        "summary": "Preview how a payload will split before writing anything to memory.",
+        "request": {"content": "# One\nalpha\n# Two\nbeta", "split_mode": "markdown"},
+        "response": {"workspace": "demo", "split_mode": "markdown", "ingest_preview": {"item_count": 2}},
+    },
+    {
         "name": "Recall context",
         "method": "POST",
         "path": "/api/workspaces/{slug}/mcp",
@@ -963,6 +995,18 @@ API_EXAMPLES = [
         },
     },
     {
+        "name": "Observability",
+        "method": "GET",
+        "path": "/api/workspaces/{slug}/observability",
+        "auth": "workspace key",
+        "summary": "Read latency, failure rate, slow routes, top routes, runtime cache, and recent ingest runs.",
+        "request": None,
+        "response": {
+            "workspace": "demo",
+            "observability": {"failure_rate": 0, "p95_duration_ms": 14.2, "top_routes": [{"route": "/mcp"}]},
+        },
+    },
+    {
         "name": "Recent export",
         "method": "GET",
         "path": "/api/workspaces/{slug}/export/recent",
@@ -984,6 +1028,36 @@ API_EXAMPLES = [
         "response": {"detail": "Unsupported tool: unknown_tool"},
     },
 ]
+
+
+def elapsed_ms(started_at: float) -> float:
+    return round((time.perf_counter() - started_at) * 1000, 3)
+
+
+def json_metadata(value: str | None) -> dict:
+    try:
+        parsed = json.loads(value or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def percentile(values: list[float], percent: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, round((len(ordered) - 1) * percent)))
+    return round(ordered[index], 3)
+
+
+def ingest_preview(items: list[str]) -> dict:
+    clean_items = [item.strip() for item in items if item and item.strip()]
+    return {
+        "item_count": len(clean_items),
+        "character_count": sum(len(item) for item in clean_items),
+        "preview": clean_items[:8],
+        "largest_item_chars": max((len(item) for item in clean_items), default=0),
+    }
 
 
 def capability_count() -> int:
@@ -1057,6 +1131,7 @@ def service_architecture_spec() -> dict:
             "request_guard": "host, path, method, body size, origin, and rate-limit checks before routing",
             "headers": ["CSP", "HSTS on HTTPS", "X-Frame-Options", "X-Content-Type-Options", "Referrer-Policy"],
         },
+        "deployment": service_deploy_plan(),
         "surfaces": {
             "public": [
                 "/api/service/status",
@@ -1073,11 +1148,35 @@ def service_architecture_spec() -> dict:
                 "/api/workspaces/{slug}/mcp",
                 "/api/workspaces/{slug}/mcp/tools",
                 "/api/workspaces/{slug}/ingest",
+                "/api/workspaces/{slug}/ingest/preview",
                 "/api/workspaces/{slug}/usage",
+                "/api/workspaces/{slug}/observability",
                 "/api/workspaces/{slug}/audit",
                 "/api/workspaces/{slug}/export/recent",
+                "/api/workspaces/{slug}/agent-config",
+                "/api/workspaces/{slug}/codex.toml",
+                "/api/workspaces/{slug}/claude-skill.md",
             ],
         },
+}
+
+
+def service_deploy_plan() -> dict:
+    return {
+        "host": "memorylayer.run",
+        "runtime": "docker compose on VPS",
+        "remote_dir": "/opt/engram-cloud",
+        "strategy": "git archive over SSH into the remote app directory, then docker compose up -d --build web",
+        "scripts": {
+            "deploy": "scripts/deploy.sh",
+            "live_check": "scripts/live-check.sh",
+        },
+        "preflight": ["git diff --check", "python -m pytest -q", "python -m compileall app"],
+        "live_checks": [
+            "/api/service/readiness",
+            "/api/service/architecture",
+            "/api/service/manifest",
+        ],
     }
 
 
@@ -1128,7 +1227,7 @@ def service_readiness() -> dict:
             "status": "pass"
             if all(
                 key in manifest["routes"]
-                for key in ("service_status", "service_manifest", "service_architecture", "service_readiness", "mcp_manifest")
+                for key in ("service_status", "service_manifest", "service_architecture", "service_readiness", "service_deploy_plan", "mcp_manifest")
             )
             else "fail",
             "routes": [
@@ -1136,6 +1235,7 @@ def service_readiness() -> dict:
                 manifest["routes"]["service_manifest"],
                 manifest["routes"]["service_architecture"],
                 manifest["routes"]["service_readiness"],
+                manifest["routes"]["service_deploy_plan"],
             ],
         },
     ]
@@ -1151,6 +1251,35 @@ def service_readiness() -> dict:
 
 
 def public_manifest() -> dict:
+    routes = {
+        "home": f"{settings.base_url}/",
+        "docs": f"{settings.base_url}/docs",
+        "agents": f"{settings.base_url}/agents",
+        "connect": f"{settings.base_url}/connect",
+        "architecture": f"{settings.base_url}/architecture",
+        "use_cases": f"{settings.base_url}/use-cases",
+        "operations": f"{settings.base_url}/operations",
+        "integrations": f"{settings.base_url}/integrations",
+        "capabilities": f"{settings.base_url}/capabilities",
+        "examples": f"{settings.base_url}/examples",
+        "api_explorer": f"{settings.base_url}/api-explorer",
+        "sdks": f"{settings.base_url}/sdks",
+        "security": f"{settings.base_url}/security",
+        "status": f"{settings.base_url}/status",
+        "changelog": f"{settings.base_url}/changelog",
+        "login": f"{settings.base_url}/login",
+        "openapi": f"{settings.base_url}/openapi.json",
+        "service_status": f"{settings.base_url}/api/service/status",
+        "service_manifest": f"{settings.base_url}/api/service/manifest",
+        "service_architecture": f"{settings.base_url}/api/service/architecture",
+        "service_readiness": f"{settings.base_url}/api/service/readiness",
+        "service_deploy_plan": f"{settings.base_url}/api/service/deploy-plan",
+        "capabilities_json": f"{settings.base_url}/api/capabilities",
+        "mcp_manifest": f"{settings.base_url}/api/mcp/manifest",
+        "sdk_snippets": f"{settings.base_url}/api/sdk-snippets",
+        "playbooks": f"{settings.base_url}/api/playbooks",
+        "api_examples": f"{settings.base_url}/api/examples",
+    }
     return {
         "service": "memorylayer",
         "name": "Memorylayer",
@@ -1158,31 +1287,7 @@ def public_manifest() -> dict:
         "runtime": "vps",
         "database": "postgres",
         "base_url": settings.base_url,
-        "routes": {
-            "home": f"{settings.base_url}/",
-            "docs": f"{settings.base_url}/docs",
-            "agents": f"{settings.base_url}/agents",
-            "connect": f"{settings.base_url}/connect",
-            "architecture": f"{settings.base_url}/architecture",
-            "use_cases": f"{settings.base_url}/use-cases",
-            "operations": f"{settings.base_url}/operations",
-            "integrations": f"{settings.base_url}/integrations",
-            "capabilities": f"{settings.base_url}/capabilities",
-            "examples": f"{settings.base_url}/examples",
-            "api_explorer": f"{settings.base_url}/api-explorer",
-            "sdks": f"{settings.base_url}/sdks",
-            "status": f"{settings.base_url}/status",
-            "openapi": f"{settings.base_url}/openapi.json",
-            "service_status": f"{settings.base_url}/api/service/status",
-            "service_manifest": f"{settings.base_url}/api/service/manifest",
-            "service_architecture": f"{settings.base_url}/api/service/architecture",
-            "service_readiness": f"{settings.base_url}/api/service/readiness",
-            "capabilities_json": f"{settings.base_url}/api/capabilities",
-            "mcp_manifest": f"{settings.base_url}/api/mcp/manifest",
-            "sdk_snippets": f"{settings.base_url}/api/sdk-snippets",
-            "playbooks": f"{settings.base_url}/api/playbooks",
-            "api_examples": f"{settings.base_url}/api/examples",
-        },
+        "routes": routes,
         "counts": {
             "features": len(SERVICE_FEATURES),
             "capabilities": capability_count(),
@@ -1193,11 +1298,24 @@ def public_manifest() -> dict:
             "playbooks": len(PLAYBOOKS),
             "api_examples": len(API_EXAMPLES),
             "skills": len(STARTER_SKILLS),
+            "routes": len(routes),
         },
     }
 
 
 CHANGELOG_ENTRIES = [
+    {
+        "version": "Workspace operations expansion",
+        "date": "2026-05-28",
+        "changes": [
+            "Added repeatable VPS deploy and live-check scripts plus a public deploy-plan JSON endpoint.",
+            "Added workspace agent config exports: bundled agent config JSON, Codex TOML, and Claude skill markdown.",
+            "Added workspace observability with latency, p95, failure rate, slow-route sampling, runtime cache context, and recent ingest health.",
+            "Added ingest preview plus markdown-heading and CSV-row splitting modes before memory writes.",
+            "Expanded workspace and dashboard UI with connection profile shortcuts, observability panels, ingest preview commands, and richer operator signals.",
+            "Bumped the app package version to 0.3.0.",
+        ],
+    },
     {
         "version": "Service self-inspection",
         "date": "2026-05-27",
@@ -1443,6 +1561,24 @@ def split_ingest_text(raw_text: str, mode: str = "auto", max_items: int = 80) ->
         chunks = [line.strip("- \t") for line in text.splitlines() if line.strip("- \t")]
     elif mode == "paragraphs":
         chunks = [part.strip() for part in text.split("\n\n") if part.strip()]
+    elif mode == "markdown":
+        sections: list[str] = []
+        current: list[str] = []
+        for line in text.splitlines():
+            if line.startswith("#") and current:
+                sections.append("\n".join(current).strip())
+                current = [line]
+            else:
+                current.append(line)
+        if current:
+            sections.append("\n".join(current).strip())
+        chunks = [section for section in sections if section]
+    elif mode == "csv":
+        reader = csv.DictReader(io.StringIO(text))
+        if reader.fieldnames:
+            chunks = [json.dumps(row, ensure_ascii=False) for row in reader if any((value or "").strip() for value in row.values())]
+        else:
+            chunks = [line.strip() for line in text.splitlines() if line.strip()]
     elif mode == "json":
         try:
             parsed = json.loads(text)
@@ -1465,6 +1601,20 @@ def split_ingest_text(raw_text: str, mode: str = "auto", max_items: int = 80) ->
         if len(chunks) <= 1 and len(text) > 1800:
             chunks = [text[index : index + 1400].strip() for index in range(0, len(text), 1400)]
     return [chunk for chunk in chunks if chunk][:max_items]
+
+
+def ingest_items_from_payload(payload: dict) -> tuple[list[str], str]:
+    split_mode = payload.get("split_mode") or "auto"
+    items = payload.get("items")
+    if isinstance(items, list):
+        return (
+            [
+                bounded_text(json.dumps(item, ensure_ascii=False) if not isinstance(item, str) else item, "ingest item", 20_000)
+                for item in items[:100]
+            ],
+            split_mode,
+        )
+    return split_ingest_text(bounded_text(str(payload.get("content") or ""), "content", 200_000), mode=split_mode), split_mode
 
 
 def ingest_workspace_items(
@@ -1594,7 +1744,8 @@ def _workspace_api_usage_feed(db, workspace_id: str, limit: int = 20) -> list[di
             "created_at": event.created_at.isoformat() if event.created_at else None,
             "api_key_label": api_key.label if api_key else "unknown key",
             "api_key_prefix": api_key.token_prefix if api_key else "",
-            "metadata": json.loads(event.metadata_json or "{}"),
+            "duration_ms": json_metadata(event.metadata_json).get("duration_ms"),
+            "metadata": json_metadata(event.metadata_json),
         }
         for event, api_key in rows
     ]
@@ -1625,6 +1776,57 @@ def _workspace_api_usage_summary(db, workspace_id: str) -> dict:
         "last_seen": last_seen.isoformat() if last_seen else None,
         "top_routes": [{"route": route, "calls": calls} for route, calls in route_rows],
         "key_calls": {key_id: calls for key_id, calls in key_rows},
+    }
+
+
+def _workspace_observability_summary(db, workspace_id: str, limit: int = 250) -> dict:
+    rows = db.execute(
+        select(WorkspaceApiEvent, WorkspaceApiKey)
+        .outerjoin(WorkspaceApiKey, WorkspaceApiKey.id == WorkspaceApiEvent.api_key_id)
+        .where(WorkspaceApiEvent.workspace_id == workspace_id)
+        .order_by(WorkspaceApiEvent.created_at.desc())
+        .limit(limit)
+    ).all()
+    events = []
+    route_counts: dict[str, int] = {}
+    failure_count = 0
+    durations: list[float] = []
+    for event, api_key in rows:
+        metadata = json_metadata(event.metadata_json)
+        duration_ms = metadata.get("duration_ms")
+        if isinstance(duration_ms, (int, float)):
+            durations.append(float(duration_ms))
+        if event.status_code >= 400:
+            failure_count += 1
+        route_counts[event.route] = route_counts.get(event.route, 0) + 1
+        events.append(
+            {
+                "route": event.route,
+                "method": event.method,
+                "status_code": event.status_code,
+                "duration_ms": duration_ms,
+                "created_at": event.created_at.isoformat() if event.created_at else None,
+                "api_key_label": api_key.label if api_key else "unknown key",
+                "metadata": metadata,
+            }
+        )
+    total = len(rows)
+    slowest = sorted(
+        [event for event in events if isinstance(event.get("duration_ms"), (int, float))],
+        key=lambda event: event["duration_ms"],
+        reverse=True,
+    )[:8]
+    return {
+        "sample_size": total,
+        "failure_count": failure_count,
+        "failure_rate": round(failure_count / total, 4) if total else 0,
+        "avg_duration_ms": round(sum(durations) / len(durations), 3) if durations else 0,
+        "p95_duration_ms": percentile(durations, 0.95),
+        "slowest": slowest,
+        "top_routes": [
+            {"route": route, "calls": count}
+            for route, count in sorted(route_counts.items(), key=lambda item: item[1], reverse=True)[:8]
+        ],
     }
 
 
@@ -1697,6 +1899,7 @@ def _workspace_view_context(db, workspace: Workspace, search_results=None, searc
         "audit_events": _workspace_audit_feed(db, workspace.id),
         "api_usage_events": _workspace_api_usage_feed(db, workspace.id),
         "api_usage_summary": api_usage_summary,
+        "observability": _workspace_observability_summary(db, workspace.id),
         "ingest_runs": _workspace_ingest_runs(db, workspace.id),
         "operator_summary": _workspace_operator_summary(db, workspace.id),
         "revealed_api_key": revealed_api_key,
@@ -1717,8 +1920,84 @@ def workspace_endpoint_map(workspace: Workspace) -> dict:
         "export_recent": f"{base}/export/recent",
         "usage": f"{base}/usage",
         "audit": f"{base}/audit",
+        "observability": f"{base}/observability",
+        "connect": f"{base}/connect",
         "mcp": f"{base}/mcp",
         "mcp_tools": f"{base}/mcp/tools",
+        "agent_config": f"{base}/agent-config",
+        "codex_toml": f"{base}/codex.toml",
+        "claude_skill": f"{base}/claude-skill.md",
+        "ingest_preview": f"{base}/ingest/preview",
+    }
+
+
+def workspace_codex_toml(workspace: Workspace, token_hint: str = "engram_...") -> str:
+    endpoints = workspace_endpoint_map(workspace)
+    return f"""# Memorylayer workspace profile for Codex-side launchers.
+# Keep the real key in your shell or secret manager.
+[memorylayer]
+base_url = "{settings.base_url}"
+workspace = "{workspace.slug}"
+api_key = "{token_hint}"
+bootstrap_url = "{endpoints["bootstrap"]}"
+connect_url = "{endpoints["connect"] if "connect" in endpoints else settings.base_url + "/api/workspaces/" + workspace.slug + "/connect"}"
+mcp_url = "{endpoints["mcp"]}"
+tools_url = "{endpoints["mcp_tools"]}"
+observability_url = "{endpoints["observability"]}"
+
+[memorylayer.startup]
+recall_recent = true
+recall_context_query = "current task"
+checkpoint_on_stop = true
+"""
+
+
+def workspace_claude_skill(workspace: Workspace, token_hint: str = "engram_...") -> str:
+    endpoints = workspace_endpoint_map(workspace)
+    return f"""---
+name: memorylayer-{workspace.slug}
+description: Use at the start and end of work that should persist to the {workspace.name} Memorylayer workspace.
+---
+
+# Memorylayer workspace: {workspace.name}
+
+Use this hosted memory workspace before starting substantive work and before stopping.
+
+## Connection
+
+- Base URL: `{settings.base_url}`
+- Workspace: `{workspace.slug}`
+- API key: `{token_hint}`
+- Bridge URL: `{endpoints["mcp"]}`
+- Tool discovery: `{endpoints["mcp_tools"]}`
+- Observability: `{endpoints["observability"]}`
+
+## Startup
+
+1. Fetch `{endpoints["bootstrap"]}`.
+2. Call the bridge with `recall_context` for the current task.
+3. Use `get_skills` when the task may benefit from project-specific procedure.
+
+## Shutdown
+
+Call `session_checkpoint` or `session_handoff` with the concrete changes, decisions, tests, deploys, and unresolved issues.
+"""
+
+
+def workspace_client_bundle(workspace: Workspace, api_key_label: str = "workspace key", token_hint: str = "engram_...") -> dict:
+    endpoints = workspace_endpoint_map(workspace)
+    return {
+        "workspace": {"name": workspace.name, "slug": workspace.slug, "schema_name": workspace.schema_name},
+        "api_key": {"label": api_key_label, "token_hint": token_hint},
+        "endpoints": endpoints,
+        "env": render_workspace_env(workspace, token_hint=token_hint),
+        "codex_toml": workspace_codex_toml(workspace, token_hint=token_hint),
+        "claude_skill": workspace_claude_skill(workspace, token_hint=token_hint),
+        "curl": {
+            "bootstrap": f'curl -H "Authorization: Bearer {token_hint}" "{endpoints["bootstrap"]}"',
+            "recall_recent": f'curl -X POST -H "Authorization: Bearer {token_hint}" -H "Content-Type: application/json" -d \'{{"tool":"recall_recent","args":{{"limit":5}}}}\' "{endpoints["mcp"]}"',
+            "checkpoint": f'curl -X POST -H "Authorization: Bearer {token_hint}" -H "Content-Type: application/json" -d \'{{"tool":"session_checkpoint","args":{{"note":"session completed","limit":8}}}}\' "{endpoints["mcp"]}"',
+        },
     }
 
 
@@ -1748,6 +2027,13 @@ def workspace_connection_kit(workspace: Workspace, api_key_label: str = "workspa
             "call_url": endpoints["mcp"],
             "tools_url": endpoints["mcp_tools"],
             "manifest_url": f"{settings.base_url}/api/mcp/manifest",
+        },
+        "client_profiles": {
+            "agent_config_url": endpoints["agent_config"],
+            "codex_toml_url": endpoints["codex_toml"],
+            "claude_skill_url": endpoints["claude_skill"],
+            "observability_url": endpoints["observability"],
+            "ingest_preview_url": endpoints["ingest_preview"],
         },
         "skills": [
             {
@@ -2058,6 +2344,11 @@ async def api_service_readiness():
     return JSONResponse(readiness, status_code=200 if readiness["status"] == "ok" else 503)
 
 
+@app.get("/api/service/deploy-plan")
+async def api_service_deploy_plan():
+    return JSONResponse({"service": "memorylayer", "version": APP_VERSION, "deployment": service_deploy_plan()})
+
+
 @app.get("/api/capabilities")
 async def api_capabilities():
     return JSONResponse(
@@ -2133,6 +2424,7 @@ async def sitemap_xml():
         "api/service/manifest",
         "api/service/architecture",
         "api/service/readiness",
+        "api/service/deploy-plan",
         "api/capabilities",
         "api/mcp/manifest",
         "api/sdk-snippets",
@@ -2227,6 +2519,9 @@ async def dashboard(request: Request):
                 "stats": stats,
                 "recent": recent,
                 "health_error": health_error,
+                "operator_summary": _workspace_operator_summary(db, ws.id),
+                "api_usage_summary": _workspace_api_usage_summary(db, ws.id),
+                "observability": _workspace_observability_summary(db, ws.id, limit=80),
                 "member_count": db.execute(
                     select(func.count()).select_from(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id)
                 ).scalar_one(),
@@ -2601,9 +2896,11 @@ async def api_workspace_status(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/status", "GET")
+        started_at = time.perf_counter()
+        stats = workspace_status(workspace.schema_name)
+        record_api_event(db, workspace.id, api_key.id, "/status", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "stats": workspace_status(workspace.schema_name)})
+        return JSONResponse({"workspace": workspace.slug, "stats": stats})
     finally:
         db.close()
 
@@ -2619,9 +2916,18 @@ async def api_workspace_recent(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         safe_limit = bounded_int(limit, default=10, minimum=1, maximum=100)
-        record_api_event(db, workspace.id, api_key.id, "/memories/recent", "GET", metadata={"limit": safe_limit})
+        started_at = time.perf_counter()
+        memories = workspace_recent_memories(workspace.schema_name, limit=safe_limit)
+        record_api_event(
+            db,
+            workspace.id,
+            api_key.id,
+            "/memories/recent",
+            "GET",
+            metadata={"limit": safe_limit, "duration_ms": elapsed_ms(started_at)},
+        )
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "memories": workspace_recent_memories(workspace.schema_name, limit=safe_limit)})
+        return JSONResponse({"workspace": workspace.slug, "memories": memories})
     finally:
         db.close()
 
@@ -2641,9 +2947,11 @@ async def api_workspace_search(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/search", "POST", metadata={"top_k": top_k})
+        started_at = time.perf_counter()
+        results = workspace_search(workspace.schema_name, query=query, top_k=top_k)
+        record_api_event(db, workspace.id, api_key.id, "/search", "POST", metadata={"top_k": top_k, "duration_ms": elapsed_ms(started_at)})
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "results": workspace_search(workspace.schema_name, query=query, top_k=top_k)})
+        return JSONResponse({"workspace": workspace.slug, "results": results})
     finally:
         db.close()
 
@@ -2664,6 +2972,7 @@ async def api_workspace_remember(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started_at = time.perf_counter()
         result = workspace_remember(workspace.schema_name, content=content, layer=layer, memory_type=memory_type)
         record_audit_event(
             db,
@@ -2679,7 +2988,7 @@ async def api_workspace_remember(
             api_key.id,
             "/remember",
             "POST",
-            metadata={"layer": layer, "memory_type": memory_type},
+            metadata={"layer": layer, "memory_type": memory_type, "duration_ms": elapsed_ms(started_at)},
         )
         db.commit()
         return JSONResponse({"workspace": workspace.slug, "result": result})
@@ -2699,18 +3008,11 @@ async def api_workspace_ingest(
     source_type = bounded_text(payload.get("source_type") or "json", "source_type", 80)
     layer = normalize_layer(payload.get("layer"))
     memory_type = normalize_memory_type(payload.get("memory_type"))
-    split_mode = payload.get("split_mode") or "auto"
-    items = payload.get("items")
-    if isinstance(items, list):
-        ingest_items = [
-            bounded_text(json.dumps(item, ensure_ascii=False) if not isinstance(item, str) else item, "ingest item", 20_000)
-            for item in items[:100]
-        ]
-    else:
-        ingest_items = split_ingest_text(bounded_text(str(payload.get("content") or ""), "content", 200_000), mode=split_mode)
+    ingest_items, split_mode = ingest_items_from_payload(payload)
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started_at = time.perf_counter()
         run = ingest_workspace_items(
             db,
             workspace,
@@ -2736,7 +3038,7 @@ async def api_workspace_ingest(
             api_key.id,
             "/ingest",
             "POST",
-            metadata={"item_count": run.item_count, "source_type": run.source_type},
+            metadata={"item_count": run.item_count, "source_type": run.source_type, "duration_ms": elapsed_ms(started_at)},
         )
         db.commit()
         return JSONResponse(
@@ -2756,6 +3058,34 @@ async def api_workspace_ingest(
         db.close()
 
 
+@app.post("/api/workspaces/{slug}/ingest/preview")
+async def api_workspace_ingest_preview(
+    slug: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    payload = await workspace_json_payload(request, slug, authorization, x_api_key, "/ingest/preview")
+    ingest_items, split_mode = ingest_items_from_payload(payload)
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started_at = time.perf_counter()
+        preview = ingest_preview(ingest_items)
+        record_api_event(
+            db,
+            workspace.id,
+            api_key.id,
+            "/ingest/preview",
+            "POST",
+            metadata={"split_mode": split_mode, "item_count": preview["item_count"], "duration_ms": elapsed_ms(started_at)},
+        )
+        db.commit()
+        return JSONResponse({"workspace": workspace.slug, "split_mode": split_mode, "ingest_preview": preview})
+    finally:
+        db.close()
+
+
 @app.get("/api/workspaces/{slug}/audit")
 async def api_workspace_audit(
     slug: str,
@@ -2767,9 +3097,11 @@ async def api_workspace_audit(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         safe_limit = bounded_int(limit, default=25, minimum=1, maximum=100)
-        record_api_event(db, workspace.id, api_key.id, "/audit", "GET", metadata={"limit": safe_limit})
+        started_at = time.perf_counter()
+        events = _workspace_audit_feed(db, workspace.id, limit=safe_limit)
+        record_api_event(db, workspace.id, api_key.id, "/audit", "GET", metadata={"limit": safe_limit, "duration_ms": elapsed_ms(started_at)})
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "events": _workspace_audit_feed(db, workspace.id, limit=safe_limit)})
+        return JSONResponse({"workspace": workspace.slug, "events": events})
     finally:
         db.close()
 
@@ -2785,9 +3117,11 @@ async def api_workspace_ingest_runs(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         safe_limit = bounded_int(limit, default=25, minimum=1, maximum=100)
-        record_api_event(db, workspace.id, api_key.id, "/ingest/runs", "GET", metadata={"limit": safe_limit})
+        started_at = time.perf_counter()
+        runs = _workspace_ingest_runs(db, workspace.id, limit=safe_limit)
+        record_api_event(db, workspace.id, api_key.id, "/ingest/runs", "GET", metadata={"limit": safe_limit, "duration_ms": elapsed_ms(started_at)})
         db.commit()
-        return JSONResponse({"workspace": workspace.slug, "runs": _workspace_ingest_runs(db, workspace.id, limit=safe_limit)})
+        return JSONResponse({"workspace": workspace.slug, "runs": runs})
     finally:
         db.close()
 
@@ -2803,13 +3137,15 @@ async def api_workspace_export_recent(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         safe_limit = bounded_int(limit, default=100, minimum=1, maximum=250)
-        record_api_event(db, workspace.id, api_key.id, "/export/recent", "GET", metadata={"limit": safe_limit})
+        started_at = time.perf_counter()
+        memories = workspace_recent_memories(workspace.schema_name, limit=safe_limit)
+        record_api_event(db, workspace.id, api_key.id, "/export/recent", "GET", metadata={"limit": safe_limit, "duration_ms": elapsed_ms(started_at)})
         db.commit()
         return JSONResponse(
             {
                 "workspace": workspace.slug,
                 "exported_at": utc_now().isoformat(),
-                "memories": workspace_recent_memories(workspace.schema_name, limit=safe_limit),
+                "memories": memories,
             }
         )
     finally:
@@ -2827,13 +3163,50 @@ async def api_workspace_usage(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         safe_limit = bounded_int(limit, default=50, minimum=1, maximum=100)
-        record_api_event(db, workspace.id, api_key.id, "/usage", "GET", metadata={"limit": safe_limit})
+        started_at = time.perf_counter()
+        summary = _workspace_api_usage_summary(db, workspace.id)
+        events = _workspace_api_usage_feed(db, workspace.id, limit=safe_limit)
+        record_api_event(db, workspace.id, api_key.id, "/usage", "GET", metadata={"limit": safe_limit, "duration_ms": elapsed_ms(started_at)})
         db.commit()
         return JSONResponse(
             {
                 "workspace": workspace.slug,
-                "summary": _workspace_api_usage_summary(db, workspace.id),
-                "events": _workspace_api_usage_feed(db, workspace.id, limit=safe_limit),
+                "summary": summary,
+                "events": events,
+            }
+        )
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/observability")
+async def api_workspace_observability(
+    slug: str,
+    limit: int = 250,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        safe_limit = bounded_int(limit, default=250, minimum=25, maximum=500)
+        started_at = time.perf_counter()
+        summary = _workspace_observability_summary(db, workspace.id, limit=safe_limit)
+        record_api_event(
+            db,
+            workspace.id,
+            api_key.id,
+            "/observability",
+            "GET",
+            metadata={"limit": safe_limit, "duration_ms": elapsed_ms(started_at)},
+        )
+        db.commit()
+        return JSONResponse(
+            {
+                "workspace": workspace.slug,
+                "observability": summary,
+                "runtime_cache": workspace_runtime_stats(),
+                "ingest_runs": _workspace_ingest_runs(db, workspace.id, limit=10),
             }
         )
     finally:
@@ -2850,7 +3223,9 @@ async def api_workspace_bootstrap(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         base_headers = {"Authorization": "Bearer <workspace-api-key>"}
-        record_api_event(db, workspace.id, api_key.id, "/bootstrap", "GET")
+        started_at = time.perf_counter()
+        endpoints = workspace_endpoint_map(workspace)
+        record_api_event(db, workspace.id, api_key.id, "/bootstrap", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
         db.commit()
         return JSONResponse(
             {
@@ -2864,16 +3239,21 @@ async def api_workspace_bootstrap(
                     "openapi_url": f"{settings.base_url}/openapi.json",
                 },
                 "api": {
-                    "status_url": workspace_endpoint_map(workspace)["status"],
-                    "search_url": workspace_endpoint_map(workspace)["search"],
-                    "remember_url": workspace_endpoint_map(workspace)["remember"],
-                    "recent_url": workspace_endpoint_map(workspace)["recent"],
-                    "audit_url": workspace_endpoint_map(workspace)["audit"],
-                    "usage_url": workspace_endpoint_map(workspace)["usage"],
-                    "ingest_url": workspace_endpoint_map(workspace)["ingest"],
-                    "ingest_runs_url": workspace_endpoint_map(workspace)["ingest_runs"],
-                    "recent_export_url": workspace_endpoint_map(workspace)["export_recent"],
-                    "connect_config_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/connect",
+                    "status_url": endpoints["status"],
+                    "search_url": endpoints["search"],
+                    "remember_url": endpoints["remember"],
+                    "recent_url": endpoints["recent"],
+                    "audit_url": endpoints["audit"],
+                    "usage_url": endpoints["usage"],
+                    "observability_url": endpoints["observability"],
+                    "ingest_url": endpoints["ingest"],
+                    "ingest_preview_url": endpoints["ingest_preview"],
+                    "ingest_runs_url": endpoints["ingest_runs"],
+                    "recent_export_url": endpoints["export_recent"],
+                    "connect_config_url": endpoints["connect"],
+                    "agent_config_url": endpoints["agent_config"],
+                    "codex_toml_url": endpoints["codex_toml"],
+                    "claude_skill_url": endpoints["claude_skill"],
                     "env_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/env",
                     "headers": base_headers,
                 },
@@ -2908,9 +3288,65 @@ async def api_workspace_connect(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/connect", "GET")
+        started_at = time.perf_counter()
+        kit = workspace_connection_kit(workspace, api_key_label=api_key.label, token_hint=f"{api_key.token_prefix}...")
+        record_api_event(db, workspace.id, api_key.id, "/connect", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
         db.commit()
-        return JSONResponse(workspace_connection_kit(workspace, api_key_label=api_key.label, token_hint=f"{api_key.token_prefix}..."))
+        return JSONResponse(kit)
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/agent-config")
+async def api_workspace_agent_config(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started_at = time.perf_counter()
+        bundle = workspace_client_bundle(workspace, api_key_label=api_key.label, token_hint=f"{api_key.token_prefix}...")
+        record_api_event(db, workspace.id, api_key.id, "/agent-config", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
+        db.commit()
+        return JSONResponse(bundle)
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/codex.toml")
+async def api_workspace_codex_toml(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started_at = time.perf_counter()
+        body = workspace_codex_toml(workspace, token_hint=f"{api_key.token_prefix}...")
+        record_api_event(db, workspace.id, api_key.id, "/codex.toml", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
+        db.commit()
+        return PlainTextResponse(body, media_type="text/plain; charset=utf-8")
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/claude-skill.md")
+async def api_workspace_claude_skill(
+    slug: str,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started_at = time.perf_counter()
+        body = workspace_claude_skill(workspace, token_hint=f"{api_key.token_prefix}...")
+        record_api_event(db, workspace.id, api_key.id, "/claude-skill.md", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
+        db.commit()
+        return PlainTextResponse(body, media_type="text/markdown; charset=utf-8")
     finally:
         db.close()
 
@@ -2924,10 +3360,12 @@ async def api_workspace_env(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/env", "GET")
+        started_at = time.perf_counter()
+        env = render_workspace_env(workspace, token_hint=f"{api_key.token_prefix}...")
+        record_api_event(db, workspace.id, api_key.id, "/env", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
         db.commit()
         return PlainTextResponse(
-            render_workspace_env(workspace, token_hint=f"{api_key.token_prefix}..."),
+            env,
             media_type="text/plain; charset=utf-8",
         )
     finally:
@@ -2952,6 +3390,7 @@ async def api_workspace_mcp(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started_at = time.perf_counter()
         try:
             result = workspace_tool_call(workspace.schema_name, tool_name, args)
         except ValueError as exc:
@@ -2962,7 +3401,7 @@ async def api_workspace_mcp(
                 "/mcp",
                 "POST",
                 status_code=400,
-                metadata={"tool": tool_name, "error": str(exc)},
+                metadata={"tool": tool_name, "error": str(exc), "duration_ms": elapsed_ms(started_at)},
             )
             db.commit()
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -2975,7 +3414,7 @@ async def api_workspace_mcp(
             summary=f"API key {api_key.label} called {tool_name}",
             metadata={"tool": tool_name},
         )
-        record_api_event(db, workspace.id, api_key.id, "/mcp", "POST", metadata={"tool": tool_name})
+        record_api_event(db, workspace.id, api_key.id, "/mcp", "POST", metadata={"tool": tool_name, "duration_ms": elapsed_ms(started_at)})
         db.commit()
         return JSONResponse({"workspace": workspace.slug, "tool": tool_name, "result": result})
     finally:
@@ -2991,14 +3430,16 @@ async def api_workspace_mcp_tools(
     db = SessionLocal()
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
-        record_api_event(db, workspace.id, api_key.id, "/mcp/tools", "GET")
+        started_at = time.perf_counter()
+        tools = SUPPORTED_TOOLS
+        record_api_event(db, workspace.id, api_key.id, "/mcp/tools", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
         db.commit()
         return JSONResponse(
             {
                 "workspace": workspace.slug,
                 "transport": "http-json",
                 "call_url": f"{settings.base_url}/api/workspaces/{workspace.slug}/mcp",
-                "tools": SUPPORTED_TOOLS,
+                "tools": tools,
             }
         )
     finally:

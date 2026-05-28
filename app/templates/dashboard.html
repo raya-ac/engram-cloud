@@ -25,6 +25,7 @@
       <a class="item" href="/examples"><div>Integration examples</div><div class="meta"><span>curl</span><span>recipes</span></div></a>
       <a class="item" href="/security"><div>Security posture</div><div class="meta"><span>keys</span><span>audit</span></div></a>
       <a class="item" href="/api/service/status"><div>Service status JSON</div><div class="meta"><span>health</span><span>machine readable</span></div></a>
+      <a class="item" href="/api/service/deploy-plan"><div>Deploy plan JSON</div><div class="meta"><span>release</span><span>vps</span></div></a>
     </div>
   </div>
 </div>
@@ -52,6 +53,11 @@
     <div class="badge-row" style="margin-top:14px">
       <span class="badge">{{ entry.workspace.schema_name }}</span>
       <span class="badge">{{ entry.member_count }} member{% if entry.member_count != 1 %}s{% endif %}</span>
+      <span class="badge">{{ entry.operator_summary.active_keys }} active key{% if entry.operator_summary.active_keys != 1 %}s{% endif %}</span>
+      <span class="badge">{{ entry.api_usage_summary.total_calls }} api calls</span>
+      {% if entry.observability.failure_count %}
+      <span class="badge">{{ entry.observability.failure_count }} failures</span>
+      {% endif %}
     </div>
     <div class="list" style="margin-top:16px">
       {% if entry.health_error %}

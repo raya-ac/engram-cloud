@@ -48,6 +48,9 @@ def test_public_service_pages_render():
     docs = client.get("/docs")
     assert "Plug agents into memory" in docs.text
     assert "/api/workspaces/{slug}/connect" in docs.text
+    assert "/api/workspaces/{slug}/agent-config" in docs.text
+    assert "/api/workspaces/{slug}/observability" in docs.text
+    assert "/api/workspaces/{slug}/ingest/preview" in docs.text
     assert "/api/workspaces/{slug}/env" in docs.text
     assert "/api/workspaces/{slug}/usage" in docs.text
     assert "/api/workspaces/{slug}/ingest" in docs.text
@@ -82,6 +85,8 @@ def test_public_service_pages_render():
     operations = client.get("/operations")
     assert "Operate hosted memory without guessing" in operations.text
     assert "Operator loop" in operations.text
+    assert "Deploy path" in operations.text
+    assert "Observability contract" in operations.text
     integrations = client.get("/integrations")
     assert "One memory surface for every agent client" in integrations.text
     assert "Connection contract" in integrations.text
@@ -108,17 +113,22 @@ def test_public_service_metadata_routes():
 
     manifest = client.get("/api/service/manifest")
     assert manifest.status_code == 200
-    assert manifest.json()["version"] == "0.2.0"
+    assert manifest.json()["version"] == "0.3.0"
     assert manifest.json()["counts"]["capabilities"] >= 240
     assert manifest.json()["routes"]["service_manifest"].endswith("/api/service/manifest")
     assert manifest.json()["routes"]["service_architecture"].endswith("/api/service/architecture")
     assert manifest.json()["routes"]["service_readiness"].endswith("/api/service/readiness")
+    assert manifest.json()["routes"]["service_deploy_plan"].endswith("/api/service/deploy-plan")
     assert manifest.json()["routes"]["mcp_manifest"].endswith("/api/mcp/manifest")
     assert manifest.json()["routes"]["api_examples"].endswith("/api/examples")
     assert manifest.json()["routes"]["architecture"].endswith("/architecture")
     assert manifest.json()["routes"]["use_cases"].endswith("/use-cases")
     assert manifest.json()["routes"]["operations"].endswith("/operations")
     assert manifest.json()["routes"]["integrations"].endswith("/integrations")
+    assert manifest.json()["routes"]["security"].endswith("/security")
+    assert manifest.json()["routes"]["changelog"].endswith("/changelog")
+    assert manifest.json()["routes"]["login"].endswith("/login")
+    assert manifest.json()["counts"]["routes"] == len(manifest.json()["routes"])
 
     capabilities = client.get("/api/capabilities")
     assert capabilities.status_code == 200
@@ -134,12 +144,14 @@ def test_public_service_metadata_routes():
 
     service_architecture = client.get("/api/service/architecture")
     assert service_architecture.status_code == 200
-    assert service_architecture.json()["service"]["version"] == "0.2.0"
+    assert service_architecture.json()["service"]["version"] == "0.3.0"
     assert service_architecture.json()["storage"]["workspace_backend"] == "postgres"
     assert service_architecture.json()["models"]["embedding_model"] == "BAAI/bge-small-en-v1.5"
     assert service_architecture.json()["models"]["embedding_dimensions"] == 384
     assert service_architecture.json()["limits"]["max_workspace_runtimes"] == 16
     assert "/api/service/readiness" in service_architecture.json()["surfaces"]["public"]
+    assert "/api/workspaces/{slug}/agent-config" in service_architecture.json()["surfaces"]["workspace"]
+    assert service_architecture.json()["deployment"]["scripts"]["deploy"] == "scripts/deploy.sh"
 
     service_readiness = client.get("/api/service/readiness")
     assert service_readiness.status_code in (200, 503)
@@ -147,6 +159,11 @@ def test_public_service_metadata_routes():
     assert readiness_payload["status"] in ("ok", "degraded")
     assert any(check["name"] == "database" for check in readiness_payload["checks"])
     assert any(check["name"] == "runtime_cache" for check in readiness_payload["checks"])
+
+    deploy_plan = client.get("/api/service/deploy-plan")
+    assert deploy_plan.status_code == 200
+    assert deploy_plan.json()["version"] == "0.3.0"
+    assert deploy_plan.json()["deployment"]["scripts"]["live_check"] == "scripts/live-check.sh"
 
     snippets = client.get("/api/sdk-snippets")
     assert snippets.status_code == 200
@@ -162,6 +179,9 @@ def test_public_service_metadata_routes():
     assert any(example["name"] == "Connection kit" for example in api_examples.json()["api_examples"])
     assert any(example["name"] == "Service architecture" for example in api_examples.json()["api_examples"])
     assert any(example["name"] == "Service readiness" for example in api_examples.json()["api_examples"])
+    assert any(example["name"] == "Agent config bundle" for example in api_examples.json()["api_examples"])
+    assert any(example["name"] == "Ingest preview" for example in api_examples.json()["api_examples"])
+    assert any(example["name"] == "Observability" for example in api_examples.json()["api_examples"])
     assert any(example["path"] == "/api/workspaces/{slug}/ingest" for example in api_examples.json()["api_examples"])
 
     robots = client.get("/robots.txt")
@@ -173,6 +193,7 @@ def test_public_service_metadata_routes():
     assert "/api/mcp/manifest" in sitemap.text
     assert "/api/service/architecture" in sitemap.text
     assert "/api/service/readiness" in sitemap.text
+    assert "/api/service/deploy-plan" in sitemap.text
     assert "/api/sdk-snippets" in sitemap.text
     assert "/api/examples" in sitemap.text
     assert "/api-explorer" in sitemap.text
@@ -256,3 +277,8 @@ def test_ingest_text_split_modes():
     assert split_ingest_text("one\n\ntwo", mode="paragraphs") == ["one", "two"]
     assert split_ingest_text("- one\n- two", mode="lines") == ["one", "two"]
     assert split_ingest_text('{"items":["one","two"]}', mode="json") == ["one", "two"]
+    assert split_ingest_text("# One\nalpha\n# Two\nbeta", mode="markdown") == ["# One\nalpha", "# Two\nbeta"]
+    assert split_ingest_text("name,value\nalpha,1\nbeta,2", mode="csv") == [
+        '{"name": "alpha", "value": "1"}',
+        '{"name": "beta", "value": "2"}',
+    ]

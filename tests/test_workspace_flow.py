@@ -103,6 +103,9 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
     assert response.status_code == 200
     assert "Ingest data" in response.text
     assert "Workspace setup checklist" in response.text
+    assert "Agent config" in response.text
+    assert "Ingest preview API" in response.text
+    assert "Slowest recent routes" in response.text
 
     response = client.post(
         "/app/workspaces/flow-test/remember",
@@ -177,14 +180,30 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
     assert client.get("/api/workspaces/flow-test/export/recent", headers=headers).json()["memories"]
     bootstrap_payload = client.get("/api/workspaces/flow-test/bootstrap", headers=headers).json()
     assert "ingest_url" in bootstrap_payload["api"]
+    assert "ingest_preview_url" in bootstrap_payload["api"]
+    assert "observability_url" in bootstrap_payload["api"]
+    assert "agent_config_url" in bootstrap_payload["api"]
     assert "connect_config_url" in bootstrap_payload["api"]
     connect_payload = client.get("/api/workspaces/flow-test/connect", headers=headers).json()
     assert connect_payload["workspace"]["slug"] == "flow-test"
     assert connect_payload["endpoints"]["mcp"].endswith("/api/workspaces/flow-test/mcp")
+    assert connect_payload["client_profiles"]["agent_config_url"].endswith("/api/workspaces/flow-test/agent-config")
     assert connect_payload["startup_calls"]
+    agent_config = client.get("/api/workspaces/flow-test/agent-config", headers=headers).json()
+    assert "codex_toml" in agent_config
+    assert "claude_skill" in agent_config
+    assert agent_config["endpoints"]["observability"].endswith("/api/workspaces/flow-test/observability")
+    assert client.get("/api/workspaces/flow-test/codex.toml", headers=headers).text.startswith("# Memorylayer workspace profile")
+    assert "# Memorylayer workspace: Flow Test" in client.get("/api/workspaces/flow-test/claude-skill.md", headers=headers).text
     env_payload = client.get("/api/workspaces/flow-test/env", headers=headers)
     assert env_payload.status_code == 200
     assert 'MEMORYLAYER_WORKSPACE="flow-test"' in env_payload.text
+    preview_payload = client.post(
+        "/api/workspaces/flow-test/ingest/preview",
+        headers=headers,
+        json={"content": "# One\nalpha\n# Two\nbeta", "split_mode": "markdown"},
+    ).json()
+    assert preview_payload["ingest_preview"]["item_count"] == 2
     assert client.post(
         "/api/workspaces/flow-test/mcp",
         headers=headers,
@@ -195,6 +214,9 @@ def test_authenticated_workspace_lifecycle(monkeypatch):
     assert {"recall_context", "session_handoff", "remember_negative", "get_skills"}.issubset(tool_names)
     assert next(tool for tool in tools_payload["tools"] if tool["name"] == "recall_context")["args"]["query"] == "string"
     assert client.get("/api/workspaces/flow-test/usage", headers=headers).json()["summary"]["total_calls"] >= 7
+    observability = client.get("/api/workspaces/flow-test/observability", headers=headers).json()
+    assert "p95_duration_ms" in observability["observability"]
+    assert observability["observability"]["sample_size"] >= 1
     assert client.get("/api/workspaces/flow-test/audit", headers=headers).json()["events"]
 
     response = client.post(

@@ -9,6 +9,7 @@
     <div class="nav" style="margin-top:18px">
       <a href="/api/service/status" class="button primary">Status JSON</a>
       <a href="/api/service/readiness" class="button">Readiness JSON</a>
+      <a href="/api/service/deploy-plan" class="button">Deploy plan</a>
       <a href="/changelog" class="button">Changelog</a>
     </div>
   </div>
@@ -79,7 +80,9 @@
     <tr><td><code>/api/service/status</code></td><td>Public service metadata and feature count.</td><td>None</td></tr>
     <tr><td><code>/api/service/readiness</code></td><td>Bounded database, runtime cache, security, and surface checks.</td><td>None</td></tr>
     <tr><td><code>/api/service/architecture</code></td><td>Runtime, storage, model, limit, security, and route contract.</td><td>None</td></tr>
+    <tr><td><code>/api/service/deploy-plan</code></td><td>Release script, preflight checks, remote shape, and live checks.</td><td>None</td></tr>
     <tr><td><code>/api/workspaces/{slug}/usage</code></td><td>Workspace API activity and route counts.</td><td>Workspace key</td></tr>
+    <tr><td><code>/api/workspaces/{slug}/observability</code></td><td>Workspace latency, failures, slow routes, cache, and ingest health.</td><td>Workspace key</td></tr>
     <tr><td><code>/api/workspaces/{slug}/audit</code></td><td>Workspace audit history.</td><td>Workspace key</td></tr>
     <tr><td><code>/openapi.json</code></td><td>Machine-readable API contract.</td><td>None</td></tr>
   </tbody>

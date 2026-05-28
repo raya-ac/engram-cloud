@@ -10,6 +10,11 @@
     <h2>{{ workspace.name }}</h2>
     <p class="subtle">Hosted Engram workspace with its own graph, invite flow, API keys, audit trail, and agent bootstrap surface.</p>
   </div>
+  <div class="nav">
+    <a class="button" href="{{ connection_kit.client_profiles.agent_config_url }}">Agent config</a>
+    <a class="button" href="{{ connection_kit.client_profiles.codex_toml_url }}">Codex TOML</a>
+    <a class="button" href="{{ connection_kit.client_profiles.claude_skill_url }}">Claude skill</a>
+  </div>
 </section>
 
 <section class="grid four" style="margin-bottom:18px">
@@ -50,6 +55,25 @@
   </div>
 </section>
 
+<section class="grid four" style="margin-bottom:18px">
+  <div class="card">
+    <div class="stat">{{ "%.1f"|format(observability.avg_duration_ms or 0) }}</div>
+    <div class="subtle">avg api ms</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ "%.1f"|format(observability.p95_duration_ms or 0) }}</div>
+    <div class="subtle">p95 api ms</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ observability.failure_count or 0 }}</div>
+    <div class="subtle">recent failures</div>
+  </div>
+  <div class="card">
+    <div class="stat">{{ observability.sample_size or 0 }}</div>
+    <div class="subtle">observability sample</div>
+  </div>
+</section>
+
 <div class="split">
   <div class="grid">
     <div class="card">
@@ -84,6 +108,13 @@
           </div>
           <div class="meta"><span>env block</span></div>
         </div>
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-agent-config-cmd">curl -H "Authorization: Bearer engram_..." "{{ connection_kit.client_profiles.agent_config_url }}"</div>
+            <button class="button copy-button" data-copy="#workspace-agent-config-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>codex toml</span><span>claude skill</span><span>curl starters</span></div>
+        </div>
       </div>
     </div>
 
@@ -111,6 +142,8 @@
           <option value="auto">auto split</option>
           <option value="paragraphs">paragraphs</option>
           <option value="lines">lines</option>
+          <option value="markdown">markdown headings</option>
+          <option value="csv">csv rows</option>
           <option value="single">single memory</option>
           <option value="json">json items</option>
         </select>
@@ -135,6 +168,15 @@
         </select>
         <button class="button primary" type="submit">Ingest into memory</button>
       </form>
+    </div>
+
+    <div class="card">
+      <h3>Ingest preview API</h3>
+      <p class="subtle" style="margin-bottom:12px">Use this before large imports to inspect the split count and sample chunks without writing memory.</p>
+      <div class="copy-row">
+        <div class="code-block" id="workspace-preview-cmd">curl -X POST -H "Authorization: Bearer engram_..." -H "Content-Type: application/json" -d '{"content":"# One\nalpha\n# Two\nbeta","split_mode":"markdown"}' "{{ connection_kit.client_profiles.ingest_preview_url }}"</div>
+        <button class="button copy-button" data-copy="#workspace-preview-cmd" type="button">Copy</button>
+      </div>
     </div>
 
     <div class="card">
@@ -333,6 +375,14 @@
           <div class="meta"><span>usage</span><span>per-key activity</span></div>
         </div>
         <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/observability</div>
+          <div class="meta"><span>latency</span><span>failures</span><span>slow routes</span></div>
+        </div>
+        <div class="item">
+          <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/agent-config</div>
+          <div class="meta"><span>codex</span><span>claude</span><span>env</span></div>
+        </div>
+        <div class="item">
           <div>{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/ingest</div>
           <div class="meta"><span>ingest</span><span>batch import</span></div>
         </div>
@@ -383,6 +433,13 @@
           </div>
           <div class="meta"><span>export</span><span>recent json</span></div>
         </div>
+        <div class="item">
+          <div class="copy-row">
+            <div class="code-block" id="workspace-observe-cmd">curl -H "Authorization: Bearer engram_..." "{{ settings.base_url }}/api/workspaces/{{ workspace.slug }}/observability"</div>
+            <button class="button copy-button" data-copy="#workspace-observe-cmd" type="button">Copy</button>
+          </div>
+          <div class="meta"><span>observability</span><span>latency and failures</span></div>
+        </div>
       </div>
     </div>
 
@@ -397,6 +454,7 @@
           <div class="meta">
             <span>{{ event.status_code }}</span>
             <span>{{ event.api_key_label }}</span>
+            {% if event.duration_ms is not none %}<span>{{ "%.1f"|format(event.duration_ms) }}ms</span>{% endif %}
             <span>{{ event.created_at }}</span>
           </div>
         </div>
@@ -414,6 +472,26 @@
         </div>
         {% endfor %}
       </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Slowest recent routes</h3>
+      {% if observability.slowest %}
+      <div class="list">
+        {% for event in observability.slowest %}
+        <div class="item">
+          <div>{{ event.method }} {{ event.route }}</div>
+          <div class="meta">
+            <span>{{ "%.1f"|format(event.duration_ms) }}ms</span>
+            <span>{{ event.status_code }}</span>
+            <span>{{ event.api_key_label }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">Latency data appears after the next workspace API calls.</div>
       {% endif %}
     </div>
 
