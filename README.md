@@ -1,251 +1,147 @@
-# Engram Cloud
+# memory layer
 
-Hosted service layer for [Engram](https://github.com/raya-ac/engram): GitHub login, shared workspaces, API keys, invite flow, a hosted MCP bridge, downloadable starter skills, and a dashboard that makes the memory engine usable as a service.
+Engram Cloud runs [Memory Layer](https://memorylayer.run), the hosted service for [Engram](https://github.com/raya-ac/engram) and [Mythic](https://github.com/raya-ac/mythic).
 
-## Why this exists
+Sign in with GitHub, create a workspace, and give your agents a place to keep useful context. You can search and write memories, import notes, manage access, and see what each API key has been doing. Open **Cognition** inside a workspace to work with Mythic sessions and their decision history.
 
-Engram is strong as a local engine. A hosted version needs a different layer around it:
+## memory and cognition
 
-- user identity
-- workspace isolation
-- service auth
-- audit history
-- a deployment model that fits a long-lived memory process
+Engram handles memory storage and retrieval. The workspace UI covers search, recent memories, ingestion, keys, invites, audit history, and usage. Imports accept pasted text or files, with paragraph, line, markdown, CSV, JSON, and single-memory splitting. Preview an import before writing it. Recent exports are useful for inspection; a complete backup needs the database and persistent files.
 
-This repo is that wrapper.
+Mythic keeps sessions, planner tasks, assumptions, observations, and decisions. A cycle recalls a bounded set of workspace memories through lexical search and records the planning state without reinforcing those memories. Normal Engram hybrid search is still available through the memory API.
 
-## Hosting choice
+An assumption starts unknown. You can check whether Engram is connected or advertises a particular tool, then record a proceed, hold, or revise decision. Checks never execute the proposed action. Server files, shell commands, plugins, and guessed workstation state are outside the hosted check registry.
 
-Recommended: **VPS**
+Observed evidence can be published explicitly to Engram. It keeps its source, expiry, and lifecycle state, including forgetting. `verified_by_engram=false` means storage isn't an independent verification claim. Dormant review, inspection, and feedback are available; automatic dormant collection stays off.
 
-Why:
+The cognition setting controls new Mythic writes and cycles for the workspace. Turning it off keeps saved sessions available to read. Kiln is optional: the hosted UI and APIs work independently of it.
 
-- Engram wants a long-lived Python process
-- direct Postgres access is simpler
-- background ingestion is easier
-- future MCP and websocket work fits more naturally
+## connect an agent
 
-Vercel is fine for:
+Create a workspace API key, then open its connection kit. It provides a bootstrap response, environment file, agent configuration, a Codex-side launcher profile, and a Claude skill. Keys stay scoped to their workspace.
 
-- marketing pages
-- auth shell
-- a thin frontend
-
-For the actual memory runtime, a VPS is the clean default.
-
-## What is in the repo right now
-
-- GitHub OAuth login
-- user/workspace metadata in Postgres
-- one Engram-backed workspace store per workspace
-- dashboard to create workspaces, inspect stats, search memory, and write memories
-- workspace invites
-- workspace API keys
-- audit trail for workspace actions
-- structured API usage tracking per workspace key
-- paste, file, and batch API ingestion into workspace memory
-- ingest preview with markdown heading, CSV row, line, paragraph, JSON, and single-memory split modes
-- ingestion run history with source metadata and item counts
-- JSON endpoints for search, remember, status, recent memories, audit history, and usage history
-- workspace observability for latency, p95, failure rate, slow routes, runtime cache, and ingest health
-- recent memory export endpoint for backups and inspection
-- warm workspace runtime cache so search and memory writes do not rebuild Engram state on every request
-- workspace bootstrap endpoint for agents
-- Codex profile, Claude skill, and full agent config bundle exports per workspace
-- hosted MCP-style bridge for retrieval, handoff, skills, curation, and memory health tools
-- public capability index with 100+ service, site, and agent-facing capabilities
-- public service, capability, and MCP manifests for clients and agent launchers
-- SDK snippet and playbook pages plus JSON endpoints
-- API explorer with request and response fixtures for client builders
-- workspace connection kit endpoints for agent config JSON and `.env` generation
-- hardened browser and API boundary with CSP, frame blocking, host/origin checks, request-size limits, safer session cookies, basic throttles, malformed JSON accounting, and probe-path blocking
-- themed browser error pages for common HTTP failures while preserving JSON errors for API clients
-- starter skill downloads in JSON and markdown
-- public docs, architecture, use-case, operations, integrations, examples, service status, security, and changelog pages
-- robots.txt and sitemap.xml for the public site
-- repeatable VPS deploy and live-check scripts
-
-## Stack
-
-- FastAPI
-- Jinja templates
-- SQLAlchemy
-- Authlib GitHub OAuth
-- Postgres
-- `engram-memory-system`
-
-## Local setup
-
-1. Copy `.env.example` to `.env`
-2. Set GitHub OAuth credentials
-3. Start Postgres
-4. Install dependencies
+The hosted MCP-style adapter uses an HTTP JSON `tool`/`args` envelope. Any client that can make authenticated HTTP requests can use it, including Python, JavaScript, shell scripts, and custom agent launchers. The [SDK page](https://memorylayer.run/sdks) has working request shapes; the [API explorer](https://memorylayer.run/api-explorer) documents the endpoints.
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8090
+export MEMORYLAYER_URL=https://memorylayer.run
+export MEMORYLAYER_WORKSPACE=your-workspace
+# Set MEMORYLAYER_API_KEY from your secret manager or shell environment.
+
+curl -H "Authorization: Bearer $MEMORYLAYER_API_KEY" \
+  "$MEMORYLAYER_URL/api/workspaces/$MEMORYLAYER_WORKSPACE/mcp/tools"
+
+curl -H "Authorization: Bearer $MEMORYLAYER_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"tool":"recall","args":{"query":"current project decisions","top_k":5}}' \
+  "$MEMORYLAYER_URL/api/workspaces/$MEMORYLAYER_WORKSPACE/mcp"
 ```
 
-Open:
-
-- [http://127.0.0.1:8090](http://127.0.0.1:8090)
-- [http://127.0.0.1:8090/docs](http://127.0.0.1:8090/docs)
-- [http://127.0.0.1:8090/connect](http://127.0.0.1:8090/connect)
-- [http://127.0.0.1:8090/architecture](http://127.0.0.1:8090/architecture)
-- [http://127.0.0.1:8090/use-cases](http://127.0.0.1:8090/use-cases)
-- [http://127.0.0.1:8090/operations](http://127.0.0.1:8090/operations)
-- [http://127.0.0.1:8090/integrations](http://127.0.0.1:8090/integrations)
-- [http://127.0.0.1:8090/examples](http://127.0.0.1:8090/examples)
-- [http://127.0.0.1:8090/api-explorer](http://127.0.0.1:8090/api-explorer)
-- [http://127.0.0.1:8090/sdks](http://127.0.0.1:8090/sdks)
-- [http://127.0.0.1:8090/security](http://127.0.0.1:8090/security)
-- [http://127.0.0.1:8090/status](http://127.0.0.1:8090/status)
-
-Run tests:
+Mythic is available through the same adapter with names such as `mythic_session_start`, or through its dedicated API:
 
 ```bash
-pytest -q
+curl -H "Authorization: Bearer $MEMORYLAYER_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"operation":"session_start","params":{"project_id":"release","goal":"prepare the next release"}}' \
+  "$MEMORYLAYER_URL/api/workspaces/$MEMORYLAYER_WORKSPACE/mythic"
 ```
 
-## Environment
+Keep the returned session ID for later cycles, checks, and resume requests. `project_id` is a logical label within the authenticated workspace. It cannot select a filesystem path or another workspace's store.
 
-Required:
+The workspace API prefix is `/api/workspaces/{slug}`:
 
-- `ENGRAM_CLOUD_SECRET_KEY`
-- `ENGRAM_CLOUD_BASE_URL`
-- `ENGRAM_CLOUD_POSTGRES_DSN`
-- `ENGRAM_CLOUD_ENGRAM_POSTGRES_DSN`
-- `ENGRAM_CLOUD_GITHUB_CLIENT_ID`
-- `ENGRAM_CLOUD_GITHUB_CLIENT_SECRET`
+| use | endpoints |
+|---|---|
+| connection setup | `GET /bootstrap`, `/connect`, `/env`, `/agent-config`, `/codex.toml`, `/claude-skill.md` |
+| memory | `GET /status`, `/memories/recent`; `POST /search`, `/remember` |
+| imports and exports | `POST /ingest/preview`, `/ingest`; `GET /ingest/runs`, `/export/recent` |
+| operations | `GET /audit`, `/usage`, `/observability` |
+| tool adapter | `GET /mcp/tools`; `POST /mcp` |
+| cognition | `GET /mythic` for discovery/settings/status; `POST /mythic` for operations |
 
-Security controls:
+Tool discovery includes schemas for retrieval, handoffs, curation, evidence, dormant review, and Mythic. Starter skills are also available at `/api/skills`, `/api/skills/{name}`, and `/api/skills/{name}.md`. The native JSONL interfaces belong to the standalone cores; use the hosted HTTP endpoints here.
 
-- `ENGRAM_CLOUD_ALLOWED_HOSTS`
-- `ENGRAM_CLOUD_SECURE_COOKIES`
-- `ENGRAM_CLOUD_SESSION_MAX_AGE_SECONDS`
-- `ENGRAM_CLOUD_MAX_REQUEST_BYTES`
-- `ENGRAM_CLOUD_AUTH_RATE_LIMIT_PER_MINUTE`
-- `ENGRAM_CLOUD_API_RATE_LIMIT_PER_MINUTE`
+## run it locally
 
-## Storage model
+The service uses FastAPI, Jinja, SQLAlchemy, Authlib, and PostgreSQL. Both core packages are pinned to Git revisions in [pyproject.toml](pyproject.toml).
 
-This service uses:
+For Docker, copy [.env.example](.env.example) to `.env` and set a random secret of at least 32 characters plus your GitHub OAuth credentials. Register the callback as `http://127.0.0.1:8090/auth/github/callback`. For the local Compose setup, use:
 
-- one shared Postgres database for app metadata
-- one Engram schema per workspace for memory data
-
-That keeps the service layer separate from the memory layer while still using the Engram package directly.
-
-## Deployment
-
-### VPS
-
-Use:
-
-- `Dockerfile`
-- `docker-compose.yml`
-- `scripts/deploy.sh`
-- `scripts/live-check.sh`
-
-Run behind Caddy or nginx with HTTPS.
-
-Standard release path:
+```dotenv
+ENGRAM_CLOUD_BASE_URL=http://127.0.0.1:8090
+ENGRAM_CLOUD_SECURE_COOKIES=false
+ENGRAM_CLOUD_POSTGRES_DSN=postgresql+psycopg://engram:engram@postgres:5432/engram_cloud
+ENGRAM_CLOUD_ENGRAM_POSTGRES_DSN=postgresql://engram:engram@postgres:5432/engram_cloud
+ENGRAM_CLOUD_DATA_DIR=./data
+```
 
 ```bash
-scripts/deploy.sh
+cp .env.example .env
+# Edit .env before starting the containers.
+docker compose up --build
 ```
 
-That runs local verification, streams the current git archive to the VPS app directory, rebuilds the web container, restarts it, and verifies the live service. See [docs/deployment.md](docs/deployment.md).
+Open [localhost:8090](http://127.0.0.1:8090). The model cache may need to download the embedding and reranker models on first use.
 
-### Vercel
+For Python development, use Python 3.12, Git, a C++ build toolchain, and a reachable PostgreSQL instance. Point both database settings at that instance instead of the Compose hostname `postgres`.
 
-Not recommended as the primary memory backend runtime.
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m uvicorn app.main:app --reload --port 8090
+```
 
-If you want, use Vercel later for:
+## configuration and storage
 
-- a separate frontend shell
-- marketing/docs
-- auth-only surfaces
+`ENGRAM_CLOUD_SECRET_KEY`, `ENGRAM_CLOUD_BASE_URL`, both database DSNs, and the GitHub client ID/secret define the service connection. Keep `.env` out of Git. For HTTPS, use the public base URL and secure cookies, with a matching OAuth callback.
 
-while the real Engram runtime lives on a VPS.
+[app/config.py](app/config.py) contains the defaults and supported controls:
 
-## Agent integration
+| setting | purpose |
+|---|---|
+| `ENGRAM_CLOUD_DATA_DIR` | persistent workspace files and Mythic state |
+| `ENGRAM_CLOUD_ALLOWED_HOSTS` | accepted request hosts |
+| `ENGRAM_CLOUD_SECURE_COOKIES` | HTTPS-only session cookies |
+| `ENGRAM_CLOUD_SESSION_MAX_AGE_SECONDS` | session lifetime |
+| `ENGRAM_CLOUD_MAX_REQUEST_BYTES` | request body limit |
+| `ENGRAM_CLOUD_AUTH_RATE_LIMIT_PER_MINUTE` | sign-in request limit |
+| `ENGRAM_CLOUD_API_RATE_LIMIT_PER_MINUTE` | workspace API request limit |
+| `ENGRAM_CLOUD_SOURCE_REVISION` | deployed source revision reported by service metadata |
 
-Each workspace can expose:
+App accounts, membership, keys, and audit records live in the shared PostgreSQL schema. Each workspace has its own Engram schema and index files. Mythic stores live under `data/<workspace>/mythic/`, with separate project directories and a persistent workspace setting.
 
-- `GET /api/workspaces/{slug}/bootstrap`
-- `GET /api/workspaces/{slug}/connect`
-- `GET /api/workspaces/{slug}/env`
-- `GET /api/workspaces/{slug}/agent-config`
-- `GET /api/workspaces/{slug}/codex.toml`
-- `GET /api/workspaces/{slug}/claude-skill.md`
-- `GET /api/workspaces/{slug}/status`
-- `GET /api/workspaces/{slug}/memories/recent`
-- `POST /api/workspaces/{slug}/search`
-- `POST /api/workspaces/{slug}/remember`
-- `POST /api/workspaces/{slug}/ingest/preview`
-- `POST /api/workspaces/{slug}/ingest`
-- `GET /api/workspaces/{slug}/audit`
-- `GET /api/workspaces/{slug}/usage`
-- `GET /api/workspaces/{slug}/observability`
-- `GET /api/workspaces/{slug}/ingest/runs`
-- `GET /api/workspaces/{slug}/export/recent`
-- `GET /api/workspaces/{slug}/mcp/tools`
-- `POST /api/workspaces/{slug}/mcp`
+Mythic opens and closes a service for each operation. The adapter bounds lock waits, database work, request size, projects, sessions, events, and storage. See [app/mythic_service.py](app/mythic_service.py) for the current limits. Save the full database and data directory together when making a backup; use a consistent SQLite backup or pause writes when copying active Mythic stores.
 
-The bridge includes tool discovery with argument hints. Current tools cover:
+## checks and deployment
 
-- status, health, memory map, quality metrics, and grouped counts
-- recall, compact context, hints, recent memories, entity lookup, and fuzzy entity search
-- focused task briefs, layered prompt context, and procedural skill selection
-- remember, decisions, errors, interactions, negative knowledge, and project state
-- session checkpoints, handoff snapshots, and resume context
-- hotspots, query comparison, export, memory status history, tags, pin, and forget
+```bash
+.venv/bin/python -m pytest -q
+```
 
-The service also exposes starter skills:
+PostgreSQL compatibility cases need `ENGRAM_TEST_POSTGRES_DSN` pointing at a disposable test database. Create that database separately from application data; without the setting, those cases are skipped.
 
-- `GET /api/skills`
-- `GET /api/skills/{name}`
-- `GET /api/skills/{name}.md`
+```bash
+ENGRAM_TEST_POSTGRES_DSN='postgresql://engram:engram@127.0.0.1:5432/engram_cloud_test' \
+  .venv/bin/python -m pytest -q
+```
 
-Public service metadata:
+The hosted service runs as a persistent Docker Compose app behind Layerline on the VPS. The release script runs local checks and builds a candidate from an exact commit:
 
-- `GET /api/health`
-- `GET /api/service/status` including runtime cache metrics
-- `GET /api/service/architecture` for runtime, storage, model, limit, and route specs
-- `GET /api/service/readiness` for bounded database, cache, security, and surface checks
-- `GET /api/service/deploy-plan` for the release path and live verification contract
-- `GET /capabilities` for the public capability index
-- `GET /architecture`
-- `GET /use-cases`
-- `GET /operations`
-- `GET /integrations`
-- `GET /api/service/manifest`
-- `GET /api/capabilities`
-- `GET /api/mcp/manifest`
-- `GET /api/sdk-snippets`
-- `GET /api/playbooks`
-- `GET /api/examples`
-- `GET /robots.txt`
-- `GET /sitemap.xml`
+```bash
+scripts/deploy.sh HEAD
+```
+
+Activation is a separate step after candidate checks and backups. [docs/deployment.md](docs/deployment.md) covers the image override, persistent mounts, origin checks, and rollback. It also covers `Dockerfile.release` for building over an existing dependency image. Preserve the old image and database backup before switching a release.
+
+The [service manifest](https://memorylayer.run/api/service/manifest) reports source revisions, including installed core provenance. `/api/service/readiness` checks the database and service configuration; `/api/service/status`, `/api/service/architecture`, and `/api/service/deploy-plan` expose the other operational details. `/openapi.json` describes the HTTP routes.
+
+## docs
+
+The hosted [docs](https://memorylayer.run/docs) link to architecture, integrations, use cases, operations, security, examples, SDK snippets, capabilities, and the changelog. Machine-readable versions include `/api/capabilities`, `/api/mcp/manifest`, `/api/sdk-snippets`, `/api/playbooks`, and `/api/examples`.
+
+[engram-memory.dev](https://engram-memory.dev) documents the standalone Engram core. Memory Layer is hosted at [memorylayer.run](https://memorylayer.run); the two sites have separate deployments.
 
 ## license
 
-Engram Cloud (Memory Layer) uses the [Engram Cloud Access License 1.0](LICENSE).
-It is proprietary; repository access does not grant permission to use or redistribute it.
-Use requires explicit prior written permission from raya-ac.
+Engram Cloud (Memory Layer) uses the [Engram Cloud Access License 1.0](LICENSE). It is proprietary. Repository access does not grant permission to use or redistribute it; use requires explicit prior written permission from raya-ac.
 
-Engram, Mythic, and other third-party material retain their own copyrights and licenses.
-This change does not replace those terms or alter rights granted under earlier licenses.
-
-## september 2026 update
-
-The hosted site is `memorylayer.run`. It remains a separate service from the Engram core documentation at [engram-memory.dev](https://engram-memory.dev), with its own GitHub sign-in, workspaces and API keys.
-
-This release pins the exact Engram source revision and adds workspace-scoped evidence operations and dormant-review tools to the existing HTTP tool bridge. Automatic dormant collection stays off. Native JSONL is an Engram core interface; it is not a hosted endpoint. Mythic runs inside each hosted workspace through a bounded direct adapter; Kiln is not required. The same operations are available through the authenticated API and existing MCP bridge.
-
-Workspace memory, ANN files and the legacy session diary stay isolated. The interface keeps existing URLs and operations while simplifying navigation, forms and mobile layouts. See [deployment](docs/deployment.md) for candidate testing, backups, immutable image activation and rollback.
-
-Mythic is pinned to `0bb4b173a8fa597c94472df476a75af4ed150578`. Open a workspace and choose **Cognition** to manage sessions, planner tasks, assumptions, registered checks, decisions and evidence. Settings persist with workspace data. Checks cover only Engram connectivity and advertised tools; workstation files and command execution are unavailable. Cycles use bounded lexical workspace context without reinforcing Engram memory. Explicit evidence publication preserves observer provenance and expiry.
+Engram, Mythic, and other third-party material retain their own copyrights and licenses. This change does not replace those terms or alter rights granted under earlier licenses.
