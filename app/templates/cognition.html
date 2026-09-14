@@ -34,7 +34,7 @@
       <div class="session-list">
         {% for entry in sessions %}
         <a href="/app/workspaces/{{ workspace.slug }}/cognition?project_id={{ (project_id or 'workspace')|urlencode }}&amp;session_id={{ entry.id|urlencode }}" class="session-link {% if entry.id == selected_session_id %}selected{% endif %}" {% if entry.id == selected_session_id %}aria-current="page"{% endif %}>
-          <strong>{{ entry.goal }}</strong><span>{{ entry.status or 'saved' }} · {{ entry.id }}</span>
+          <strong>{{ entry.goal }}</strong><span>{{ entry.status or 'saved' }}</span>
         </a>
         {% else %}<p class="subtle">No sessions in this project yet.</p>{% endfor %}
       </div>
@@ -62,12 +62,12 @@
     </section>
     <div class="cognition-explainer"><div><span>01 / plan</span><p>Add tasks and recall relevant workspace memory.</p></div><div><span>02 / check</span><p>Record assumptions and observe supported runtime checks.</p></div><div><span>03 / resume</span><p>Reopen the session with its context and decision history.</p></div></div>
     {% else %}
-    <section class="cognition-session-head"><div class="eyebrow">{{ current.get('status', 'saved') }} / {{ selected_session_id }}</div><h2>{{ current.get('goal', 'Saved session') }}</h2><nav class="workspace-nav" aria-label="Cognition sections"><a href="#plan">Plan</a><a href="#assumptions">Assumptions</a><a href="#decisions">Decisions</a><a href="#history">History</a><a href="/app/workspaces/{{ workspace.slug }}/cognition?project_id={{ (project_id or 'workspace')|urlencode }}">New session +</a></nav></section>
+    <section class="cognition-session-head"><div class="eyebrow">{{ current.get('status', 'saved') }} session</div><h2>{{ current.get('goal', 'Saved session') }}</h2><nav class="workspace-nav" aria-label="Cognition sections"><a href="#plan">Plan</a><a href="#assumptions">Assumptions</a><a href="#decisions">Decisions</a><a href="#history">History</a><a href="/app/workspaces/{{ workspace.slug }}/cognition?project_id={{ (project_id or 'workspace')|urlencode }}">New session +</a></nav></section>
     <section class="cognition-section" id="plan">
       <div class="cognition-section-head"><div><div class="eyebrow">01 / plan and recall</div><h2>working context</h2></div><form class="cycle-form" method="post" action="{{ action_url }}">{{ scope('session_cycle') }}<label class="field"><span>Memory limit</span><select name="top_k" {% if not editable %}disabled{% endif %}><option value="5">5 memories</option><option value="10">10 memories</option><option value="3">3 memories</option></select></label><button type="submit" class="button primary" {% if not editable %}disabled{% endif %}>Run cognitive cycle</button></form></div>
       <p class="subtle">A cycle recalls bounded workspace context without reinforcing memories and records the planner state. Tasks are not executed.</p>
       <div class="planner-list">
-      {% for state in ['ready', 'active', 'blocked', 'failed'] %}{% for task in snapshot.get('planner', {}).get(state, []) %}<div class="planner-row"><span class="badge state-{{ state }}">{{ state }}</span><strong>{{ task.title }}</strong><code>{{ task.id }}</code></div>{% endfor %}{% endfor %}
+      {% for state in ['ready', 'active', 'blocked', 'failed'] %}{% for task in snapshot.get('planner', {}).get(state, []) %}<div class="planner-row"><span class="badge state-{{ state }}">{{ state }}</span><strong>{{ task.title }}</strong></div>{% endfor %}{% endfor %}
       </div>
       <form method="post" action="{{ action_url }}" class="inline-action">{{ scope('task_add') }}<label class="field"><span>Planner task</span><input name="title" required maxlength="2000" placeholder="Add the next concrete step" {% if not editable %}disabled{% endif %}></label><button class="button" type="submit" {% if not editable %}disabled{% endif %}>Add task</button></form>
       {% if snapshot.get('suggested_next_actions') %}<div class="context-list"><h3>Suggested next steps</h3>{% for item in snapshot.suggested_next_actions %}<p>{{ item }}</p>{% endfor %}</div>{% endif %}
