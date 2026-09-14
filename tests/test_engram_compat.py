@@ -6,6 +6,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+import numpy as np
 from engram.config import Config
 from engram.store import Memory
 from engram import dormant, mcp_server
@@ -195,3 +196,22 @@ def test_existing_read_tools_execute_against_pinned_store(runtimes):
     }
     for name, args in calls.items():
         assert service.workspace_tool_call("alpha", name, args) is not None, name
+
+
+def test_workspace_index_rebuild_finishes_before_runtime_close(tmp_path, monkeypatch):
+    """A missing on-disk ANN index must not leave an unowned daemon at exit."""
+    from engram.store import Store
+    cfg = Config(db_path=str(tmp_path / "memory.db"))
+    cfg.ann.index_path = str(tmp_path / "index")
+    cfg.ann.enabled = True
+    store = Store(cfg)
+    store.init_db()
+    store.save_memory(Memory(id="index-fixture", content="local fixture", embedding=np.full(cfg.embedding_dim, 0.1, dtype="float32")))
+    store.close()
+    def unexpected_worker(*args, **kwargs):
+        pytest.fail("workspace startup spawned an unowned ANN worker")
+    monkeypatch.setattr(threading.Thread, "start", unexpected_worker)
+    server = service.WorkspaceServer(cfg)
+    if server.store.ann_index is not None:
+        assert server.store.ann_index.ready
+    server.store.close()

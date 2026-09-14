@@ -4,7 +4,7 @@ import re
 import threading
 import time
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import quote
 
@@ -93,7 +93,13 @@ class WorkspaceServer(MCPServer):
     """Keep the core adapter's legacy process-global diary out of tenant calls."""
 
     def __init__(self, config: Config):
-        super().__init__(config)
+        # Own index initialization inside the runtime lifetime. The core's
+        # daemon rebuild can race a closed connection or process shutdown.
+        startup = replace(config, ann=replace(config.ann, enabled=False))
+        super().__init__(startup)
+        self.config = config
+        self.store.config = config
+        self.store.init_ann_index(background=False)
         self._workspace_diary: list[str] = []
 
     # The pinned core uses literal percent signs in these bound queries.
