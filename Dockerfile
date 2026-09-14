@@ -6,7 +6,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md LICENSE ./
 
 RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch \
     && python -c 'import subprocess,tomllib; subprocess.check_call(["pip","install","--no-cache-dir",*tomllib.load(open("pyproject.toml","rb"))["project"]["dependencies"]])'

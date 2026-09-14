@@ -1,19 +1,59 @@
-Proprietary License
+Engram Cloud Access License 1.0
 
-Copyright (c) 2026 raya-ac.
-All rights reserved.
+Copyright (c) 2026 raya-ac. All rights reserved.
 
-This software and associated documentation files (the "Software") are
-proprietary and confidential. No rights are granted to use, copy, modify,
-merge, publish, distribute, sublicense, sell, host, or otherwise exploit the
-Software, in whole or in part, without prior written permission from the
-copyright holder.
+The Engram Cloud software, offered as Memory Layer, including its source code,
+binaries, service logic, configuration, models, deployment material, test
+material and documentation (the "Software"), is proprietary and confidential
+software.
 
-Access to this repository or possession of a copy of the Software does not
-grant any license, permission, or ownership interest.
+1. No public licence
 
-The Software is provided for authorized use only and without warranty of any
-kind, express or implied, including but not limited to warranties of
-merchantability, fitness for a particular purpose, and noninfringement.
+This file does not grant the public any right to use the Software. You may
+access or use it only when raya-ac has given you explicit prior written permission.
+Repository membership, a download link, possession of source or binaries, or
+access to integration material does not by itself grant permission.
 
-Any unauthorized use, reproduction, or distribution is strictly prohibited.
+2. Limited authorised use
+
+When permission is granted, it is personal, non-exclusive, non-transferable
+and limited to the named people, systems, purpose, version and period stated by
+raya-ac. No other use is allowed.
+
+Unless the written permission expressly allows it, you may not:
+
+- copy, modify, adapt, merge, translate or create derivative works;
+- distribute, publish, sell, sublicense, host, disclose or share any part of
+  the Software;
+- deploy it to a system outside the authorised Engram Cloud environment;
+- reverse engineer, decompile or attempt to extract private service logic,
+  configuration, models or implementation details;
+- publish benchmarks, runtime evaluations, bypasses or security findings; or
+- remove or hide copyright, licence, confidentiality or attribution notices.
+
+3. Confidentiality and security
+
+You must keep the Software and all non-public information about it confidential,
+use reasonable security to protect it, and promptly tell raya-ac if access is lost,
+shared, copied or exposed outside the authorised scope.
+
+4. End of access
+
+Permission ends when its stated period ends, when the authorised purpose ends,
+or when raya-ac revokes it in writing. You must immediately stop using the
+Software and delete every retained copy unless applicable law requires
+retention.
+
+5. Third-party material
+
+Any third-party material keeps its own copyright and licence. This licence
+does not expand or replace those terms.
+
+6. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

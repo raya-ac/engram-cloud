@@ -3,7 +3,7 @@
 ARG RUNTIME_IMAGE
 FROM ${RUNTIME_IMAGE}
 WORKDIR /app
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md LICENSE ./
 COPY app ./app
 RUN pip install --no-cache-dir -e .
 ARG SOURCE_REVISION=development

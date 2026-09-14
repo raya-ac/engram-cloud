@@ -8,7 +8,7 @@ version = "0.3.0"
 description = "Hosted multi-workspace service layer for Engram"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
+license = { file = "LICENSE" }
 classifiers = [
   "License :: Other/Proprietary License",
 ]

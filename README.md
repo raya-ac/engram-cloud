@@ -231,9 +231,14 @@ Public service metadata:
 - `GET /robots.txt`
 - `GET /sitemap.xml`
 
-## License
+## license
 
-Proprietary. All rights reserved. See [LICENSE](LICENSE).
+Engram Cloud (Memory Layer) uses the [Engram Cloud Access License 1.0](LICENSE).
+It is proprietary; repository access does not grant permission to use or redistribute it.
+Use requires explicit prior written permission from raya-ac.
+
+Engram, Mythic, and other third-party material retain their own copyrights and licenses.
+This change does not replace those terms or alter rights granted under earlier licenses.
 
 ## september 2026 update
 
