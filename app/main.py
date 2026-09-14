@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import false, func, select
 from sqlalchemy import delete
 from engram.config import Config
@@ -28,6 +29,7 @@ from app.auth import current_user_id, login_required, oauth
 from app.config import settings
 from app.db import Base, SessionLocal, engine
 from app.engram_service import (
+    ENGRAM_SOURCE_REVISION,
     close_workspace_runtimes,
     init_workspace_store,
     schema_name_for_slug,
@@ -52,6 +54,7 @@ from app.models import (
     utc_now,
 )
 from app.security import digest_token, mint_prefixed_token
+from app.mythic_service import mythic_dispatch, mythic_discovery, MYTHIC_READ_OPERATIONS
 
 
 APP_VERSION = "0.3.0"
@@ -819,12 +822,14 @@ API_EXAMPLES = [
         "request": None,
         "response": {
             "status": "ok",
+            "source_revision": settings.source_revision,
+            "engram_source_revision": ENGRAM_SOURCE_REVISION,
             "service": "memorylayer",
             "runtime": "vps",
             "database": "postgres",
             "features": 29,
             "capabilities": 230,
-            "mcp_tools": 60,
+            "mcp_tools": len(SUPPORTED_TOOLS) + len(mythic_discovery()["tools"]),
         },
     },
     {
@@ -1071,6 +1076,16 @@ def package_version(package_name: str, fallback: str) -> str:
         return fallback
 
 
+def installed_engram_revision() -> str | None:
+    """Only report provenance recorded by the package installer, never the version."""
+    try:
+        direct_url = metadata.distribution("engram-memory-system").read_text("direct_url.json")
+        source = json.loads(direct_url or "{}")
+        return source.get("vcs_info", {}).get("commit_id")
+    except (PackageNotFoundError, ValueError, AttributeError):
+        return None
+
+
 def engram_model_contract() -> dict:
     cfg = Config.load()
     return {
@@ -1093,6 +1108,7 @@ def service_architecture_spec() -> dict:
             "version": APP_VERSION,
             "base_url": settings.base_url,
             "runtime_target": "vps",
+            "source_revision": settings.source_revision,
         },
         "runtime": {
             "language": "python",
@@ -1110,6 +1126,8 @@ def service_architecture_spec() -> dict:
                 "driver": f"psycopg {package_version('psycopg', '>=3.2.0')}",
             },
             "engram_package": f"engram-memory-system {package_version('engram-memory-system', '>=0.5.2')}",
+            "engram_source_revision": ENGRAM_SOURCE_REVISION,
+            "engram_installed_source_revision": installed_engram_revision(),
             "workspace_backend": "postgres",
             "workspace_schema_pattern": "ws_<slug>",
             "workspace_dsn_strategy": "Postgres search_path is scoped per workspace schema",
@@ -1284,14 +1302,27 @@ def public_manifest() -> dict:
         "service": "memorylayer",
         "name": "Memorylayer",
         "version": APP_VERSION,
+        "source_revision": settings.source_revision,
         "runtime": "vps",
         "database": "postgres",
         "base_url": settings.base_url,
+        "engram": {
+            "source_revision": ENGRAM_SOURCE_REVISION,
+            "installed_source_revision": installed_engram_revision(),
+            "source_url": f"https://github.com/raya-ac/engram/tree/{ENGRAM_SOURCE_REVISION}",
+            "dependency_policy": "exact Git source pin; package version alone is insufficient",
+            "scope": "one PostgreSQL schema and runtime per workspace",
+            "dormant_collection": "off",
+            "evidence": "caller-supplied observations with provenance; Mythic offers restricted workspace capability checks",
+            "native_api": "available in Engram core; this hosted service exposes its authenticated HTTP bridge",
+            "mythic_runtime": "workspace-scoped in-process",
+        },
+        "mythic": mythic_discovery(),
         "routes": routes,
         "counts": {
             "features": len(SERVICE_FEATURES),
             "capabilities": capability_count(),
-            "mcp_tools": len(SUPPORTED_TOOLS),
+            "mcp_tools": len(SUPPORTED_TOOLS) + len(mythic_discovery()["tools"]),
             "tool_groups": len(grouped_tool_list()),
             "recipes": len(INTEGRATION_RECIPES),
             "sdk_snippets": len(SDK_SNIPPETS),
@@ -1480,6 +1511,8 @@ def normalize_memory_type(value: str | None) -> str:
 
 
 def bounded_text(value: str, field_name: str, max_chars: int) -> str:
+    if not isinstance(value, str):
+        raise HTTPException(status_code=400, detail=f"{field_name} must be text")
     cleaned = value.strip()
     if len(cleaned) > max_chars:
         raise HTTPException(status_code=400, detail=f"{field_name} is limited to {max_chars} characters")
@@ -2309,12 +2342,14 @@ async def api_service_status():
     return JSONResponse(
         {
             "status": "ok",
+            "source_revision": settings.source_revision,
+            "engram_source_revision": ENGRAM_SOURCE_REVISION,
             "service": "memorylayer",
             "runtime": "vps",
             "database": "postgres",
             "features": len(SERVICE_FEATURES),
             "capabilities": capability_count(),
-            "mcp_tools": len(SUPPORTED_TOOLS),
+            "mcp_tools": len(SUPPORTED_TOOLS) + len(mythic_discovery()["tools"]),
             "tool_groups": len(grouped_tool_list()),
             "recipes": len(INTEGRATION_RECIPES),
             "sdk_snippets": len(SDK_SNIPPETS),
@@ -2389,7 +2424,7 @@ async def api_mcp_manifest():
             "workspace_tools_url_template": f"{settings.base_url}/api/workspaces/{{slug}}/mcp/tools",
             "auth": ["Authorization: Bearer <workspace-api-key>", "X-API-Key: <workspace-api-key>"],
             "tool_groups": grouped_tool_list(),
-            "tools": SUPPORTED_TOOLS,
+            "tools": SUPPORTED_TOOLS + [{**tool, "name": "mythic_" + tool["name"]} for tool in mythic_discovery()["tools"]],
         }
     )
 
@@ -3392,7 +3427,10 @@ async def api_workspace_mcp(
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         started_at = time.perf_counter()
         try:
-            result = workspace_tool_call(workspace.schema_name, tool_name, args)
+            if tool_name.startswith("mythic_"):
+                result = await _mythic_call(workspace.schema_name, tool_name.removeprefix("mythic_"), args)
+            else:
+                result = workspace_tool_call(workspace.schema_name, tool_name, args)
         except ValueError as exc:
             record_api_event(
                 db,
@@ -3431,7 +3469,10 @@ async def api_workspace_mcp_tools(
     try:
         workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
         started_at = time.perf_counter()
-        tools = SUPPORTED_TOOLS
+        tools = SUPPORTED_TOOLS + [
+            {**tool, "name": "mythic_" + tool["name"]}
+            for tool in mythic_discovery()["tools"]
+        ]
         record_api_event(db, workspace.id, api_key.id, "/mcp/tools", "GET", metadata={"duration_ms": elapsed_ms(started_at)})
         db.commit()
         return JSONResponse(
@@ -3465,3 +3506,161 @@ async def api_skill_download(skill_name: str):
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
     return JSONResponse(skill)
+
+
+async def _mythic_call(schema_name: str, operation: str, params: dict):
+    try:
+        return await run_in_threadpool(mythic_dispatch, schema_name, operation, params)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid or unavailable Mythic request") from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Mythic item not found in this workspace and project") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Mythic is temporarily unavailable") from exc
+
+
+def _mythic_role(membership: WorkspaceMember, operation: str):
+    if operation == "settings_update":
+        require_workspace_role(membership, {"owner", "admin"})
+    elif operation not in MYTHIC_READ_OPERATIONS:
+        require_workspace_role(membership, {"owner", "admin", "editor"})
+
+
+async def _cognition_context(workspace, membership, project_id, session_id="", action_result=None):
+    params = {"project_id": project_id}
+    status = await _mythic_call(workspace.schema_name, "status", params)
+    preferences = await _mythic_call(workspace.schema_name, "settings_get", params)
+    sessions = await _mythic_call(workspace.schema_name, "session_list", params)
+    if isinstance(sessions, dict):
+        sessions = sessions.get("sessions", [])
+    snapshot = {}
+    assumptions = {}
+    if session_id:
+        scoped = {**params, "session_id": session_id}
+        snapshot = await _mythic_call(workspace.schema_name, "session_snapshot", scoped)
+        assumptions = await _mythic_call(workspace.schema_name, "assumption_inspect", scoped)
+    return dict(workspace=workspace, project_id=project_id, cognition_status=status,
+                cognition_settings=preferences, sessions=sessions, selected_session_id=session_id,
+                snapshot=snapshot, assumptions=assumptions, action_result=action_result,
+                can_write=membership.role in {"owner", "admin", "editor"},
+                can_manage_settings=membership.role in {"owner", "admin"})
+
+
+@app.get("/app/workspaces/{slug}/cognition", response_class=HTMLResponse)
+@login_required
+async def cognition_page(request: Request, slug: str, project_id: str = "workspace", session_id: str = ""):
+    db = SessionLocal()
+    try:
+        workspace, membership = _load_membership_for_user(db, current_user_id(request), slug)
+        context = await _cognition_context(workspace, membership, project_id, session_id)
+        return render(request, "cognition.html", **context)
+    finally:
+        db.close()
+
+
+@app.post("/app/workspaces/{slug}/cognition/settings")
+@login_required
+async def cognition_settings(request: Request, slug: str):
+    form = await request.form()
+    project_id = str(form.get("project_id", "workspace"))
+    db = SessionLocal()
+    try:
+        workspace, membership = _load_membership_for_user(db, current_user_id(request), slug)
+        _mythic_role(membership, "settings_update")
+        await _mythic_call(workspace.schema_name, "settings_update", {
+            "project_id": project_id, "enabled": form.get("enabled") in {"on", "true", "1"},
+        })
+        record_audit_event(db, workspace.id, "mythic.settings.updated", "Updated Mythic settings", actor_user_id=current_user_id(request))
+        db.commit()
+        set_flash(request, "success", "Mythic settings saved.")
+        return RedirectResponse(f"/app/workspaces/{slug}/cognition?project_id={project_id}", status_code=302)
+    finally:
+        db.close()
+
+
+def _mythic_form_params(form, operation):
+    if form.get("params_json"):
+        try:
+            params = json.loads(str(form["params_json"]))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="params_json must be a JSON object") from exc
+        if not isinstance(params, dict):
+            raise HTTPException(status_code=400, detail="params_json must be a JSON object")
+        return params
+    params = {"project_id": str(form.get("project_id", "workspace"))}
+    fields = {
+        "session_start": ("goal",), "task_add": ("session_id", "title"),
+        "session_cycle": ("session_id",), "session_snapshot": ("session_id",),
+        "assumption_create": ("session_id", "statement", "decision"),
+        "assumption_check": ("session_id", "assumption_id", "check_type"),
+        "assumption_decide": ("session_id", "action"),
+        "assumption_publish_evidence": ("session_id", "assumption_id", "evidence_id"),
+        "assumption_evidence": ("session_id", "assumption_id"),
+        "assumption_evidence_get": ("session_id", "assumption_id", "evidence_id"),
+    }
+    for name in fields.get(operation, ()):
+        if form.get(name) is not None:
+            params[name] = str(form[name])
+    try:
+        for name in ({"session_cycle": ("top_k",), "assumption_create": ("impact", "max_age_seconds")}.get(operation, ())):
+            if form.get(name):
+                params[name] = int(str(form[name]))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid numeric field") from exc
+    if operation == "assumption_check":
+        params["parameters"] = {"tool": str(form.get("tool", ""))} if params.get("check_type") == "engram_tool_available" else {}
+    return params
+
+
+@app.post("/app/workspaces/{slug}/cognition/action", response_class=HTMLResponse)
+@login_required
+async def cognition_action(request: Request, slug: str):
+    form = await request.form()
+    operation = bounded_text(str(form.get("operation", "")), "operation", 80)
+    db = SessionLocal()
+    try:
+        workspace, membership = _load_membership_for_user(db, current_user_id(request), slug)
+        _mythic_role(membership, operation)
+        params = _mythic_form_params(form, operation)
+        result = await _mythic_call(workspace.schema_name, operation, params)
+        record_audit_event(db, workspace.id, "mythic.operation", f"Mythic {operation}", actor_user_id=current_user_id(request), metadata={"operation": operation})
+        db.commit()
+        session_id = str(params.get("session_id", ""))
+        if operation == "session_start" and isinstance(result, dict):
+            session_id = str(result.get("session", {}).get("id", result.get("session_id", "")))
+        context = await _cognition_context(workspace, membership, params.get("project_id", "workspace"), session_id, result)
+        return render(request, "cognition.html", **context)
+    finally:
+        db.close()
+
+
+@app.get("/api/workspaces/{slug}/mythic")
+async def api_mythic_discovery(slug: str, project_id: str = "workspace", authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)):
+    db = SessionLocal()
+    try:
+        workspace, _ = require_api_workspace(db, slug, authorization, x_api_key)
+        return {"workspace": workspace.slug, "tools": mythic_discovery(),
+                "settings": await _mythic_call(workspace.schema_name, "settings_get", {"project_id": project_id}),
+                "status": await _mythic_call(workspace.schema_name, "status", {"project_id": project_id})}
+    finally:
+        db.close()
+
+
+@app.post("/api/workspaces/{slug}/mythic")
+async def api_mythic_call(request: Request, slug: str, authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)):
+    payload = await workspace_json_payload(request, slug, authorization, x_api_key, "/mythic")
+    operation = bounded_text(payload.get("operation", ""), "operation", 80)
+    params = payload.get("params", {})
+    if not isinstance(params, dict):
+        raise HTTPException(status_code=400, detail="params must be an object")
+    db = SessionLocal()
+    try:
+        workspace, api_key = require_api_workspace(db, slug, authorization, x_api_key)
+        started = time.perf_counter()
+        result = await _mythic_call(workspace.schema_name, operation, params)
+        record_api_event(db, workspace.id, api_key.id, "/mythic", "POST", metadata={"operation": operation, "duration_ms": elapsed_ms(started)})
+        record_audit_event(db, workspace.id, "mythic.operation", f"Mythic {operation}", metadata={"operation": operation})
+        db.commit()
+        return {"workspace": workspace.slug, "operation": operation, "result": result}
+    finally:
+        db.close()

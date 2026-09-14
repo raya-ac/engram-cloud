@@ -8,7 +8,7 @@
       <span class="badge">{{ workspace.slug }}</span>
       <span class="badge">{{ invite.role }}</span>
     </div>
-    <h2 style="max-width:14ch">Join {{ workspace.name }}.</h2>
+    <h1 style="max-width:14ch">Join {{ workspace.name }}.</h1>
     <p>{{ inviter.name or inviter.login }} invited you to this workspace. Accepting gives you {{ invite.role }} access.</p>
     {% if already_member %}
     <div class="empty" style="text-align:left">You already have access to this workspace.</div>

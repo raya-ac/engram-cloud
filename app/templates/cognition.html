@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Cognition · {{ workspace.name }} · Memory Layer{% endblock %}
+{% macro scope(operation) -%}
+<input type="hidden" name="operation" value="{{ operation }}">
+<input type="hidden" name="project_id" value="{{ project_id or 'workspace' }}">
+{% if selected_session_id %}<input type="hidden" name="session_id" value="{{ selected_session_id }}">{% endif %}
+{%- endmacro %}
+{% block body %}
+{% set current = snapshot.get('session', {}) if snapshot else {} %}
+{% set enabled = cognition_settings.get('enabled', false) %}
+{% set editable = can_write and enabled %}
+{% set action_url = '/app/workspaces/' ~ workspace.slug ~ '/cognition/action' %}
+<section class="workspace-head cognition-head">
+  <div><div class="eyebrow">{{ workspace.name }} / Mythic</div><h1>cognition.</h1><p class="subtle">Plan the next step, check its premises, and keep the session ready to resume.</p></div>
+  <div class="nav"><a href="/app/workspaces/{{ workspace.slug }}" class="button">← Workspace memory</a><a href="#cognition-current" class="button primary mobile-jump">{{ "Current session ↓" if selected_session_id else "Start session ↓" }}</a></div>
+</section>
+<div class="cognition-status" aria-label="Cognition runtime status">
+  <div><span>workspace setting</span><strong>{{ 'enabled' if enabled else 'disabled' }}</strong></div>
+  <div><span>Engram connection</span><strong class="{{ 'state-supported' if cognition_status.get('engram', {}).get('connected') else 'state-unknown' }}">{{ 'connected' if cognition_status.get('engram', {}).get('connected') else 'unavailable' }}</strong></div>
+  <div><span>Mythic runtime</span><strong>{{ cognition_status.get('version', 'unavailable') }}</strong></div>
+  <div><span>saved sessions</span><strong>{{ sessions|length }}</strong></div>
+</div>
+{% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+{% if not enabled %}<div class="flash">Cognition is disabled for this workspace. Saved sessions remain available to inspect.</div>{% endif %}
+{% if not can_write %}<p class="access-note">You can inspect this workspace. A role with write access is required to create or change cognition state.</p>{% endif %}
+<div class="cognition-layout">
+  <aside class="cognition-sidebar" aria-label="Sessions and settings">
+    <section>
+      <h2>sessions</h2>
+      <form method="get" action="/app/workspaces/{{ workspace.slug }}/cognition" class="cognition-project">
+        <label class="field"><span>Project label</span><input name="project_id" value="{{ project_id or 'workspace' }}" pattern="[a-z0-9][a-z0-9_-]{0,63}" maxlength="64" required></label>
+        <button class="button" type="submit">Open project</button>
+      </form>
+      <div class="session-list">
+        {% for entry in sessions %}
+        <a href="/app/workspaces/{{ workspace.slug }}/cognition?project_id={{ (project_id or 'workspace')|urlencode }}&amp;session_id={{ entry.id|urlencode }}" class="session-link {% if entry.id == selected_session_id %}selected{% endif %}" {% if entry.id == selected_session_id %}aria-current="page"{% endif %}>
+          <strong>{{ entry.goal }}</strong><span>{{ entry.status or 'saved' }} · {{ entry.id }}</span>
+        </a>
+        {% else %}<p class="subtle">No sessions in this project yet.</p>{% endfor %}
+      </div>
+    </section>
+    <section class="cognition-settings">
+      <h2>workspace settings</h2>
+      <form method="post" action="/app/workspaces/{{ workspace.slug }}/cognition/settings">
+        <input type="hidden" name="project_id" value="{{ project_id or 'workspace' }}">
+        <label class="check-field"><input type="checkbox" name="enabled" value="true" {% if enabled %}checked{% endif %} {% if not can_manage_settings %}disabled{% endif %}><span>Enable cognition</span></label>
+        <p class="subtle">This saved setting controls new cognition writes across the workspace. It does not delete sessions.</p>
+        <button class="button" type="submit" {% if not can_manage_settings %}disabled{% endif %}>Save setting</button>
+      </form>
+      {% if not can_manage_settings %}<p class="access-note">An owner or admin can change this setting.</p>{% endif %}
+      <details class="runtime-details"><summary>Runtime boundary</summary><p>{{ cognition_status.get('context', 'Workspace memory context') }}</p><p>Cycles record planning context. They do not execute tasks or publish generated summaries. Decisions do not authorize an action.</p>{% if cognition_status.get('source_revision') %}<p>Source <code>{{ cognition_status.source_revision }}</code></p>{% endif %}</details>
+    </section>
+  </aside>
+  <div class="cognition-main" id="cognition-current">
+    {% if action_result is not none and action_result %}
+    <section class="cognition-result" role="status"><h2>Latest result</h2>{% if action_result is mapping and action_result.get('disposition') %}<p class="decision-result state-{{ action_result.disposition }}">{{ action_result.disposition }}</p><p>{{ action_result.get('cause', '') }}</p>{% endif %}<details><summary>Inspect operation response</summary><pre class="code-block">{{ action_result|tojson(indent=2) }}</pre></details></section>
+    {% endif %}
+    {% if not selected_session_id or not snapshot %}
+    <section class="cognition-section new-session">
+      <div class="eyebrow">01 / start a session</div><h2>What are you working toward?</h2><p class="subtle">Give the session a concrete goal. Tasks, recalled context, assumptions, and decision history stay with it.</p>
+      <form method="post" action="{{ action_url }}">{{ scope('session_start') }}<label class="field"><span>Session goal</span><textarea name="goal" required maxlength="2000" placeholder="Describe the result you want to reach" {% if not editable %}disabled{% endif %}></textarea></label><button class="button primary" type="submit" {% if not editable %}disabled{% endif %}>Start session</button></form>
+    </section>
+    <div class="cognition-explainer"><div><span>01 / plan</span><p>Add tasks and recall relevant workspace memory.</p></div><div><span>02 / check</span><p>Record assumptions and observe supported runtime checks.</p></div><div><span>03 / resume</span><p>Reopen the session with its context and decision history.</p></div></div>
+    {% else %}
+    <section class="cognition-session-head"><div class="eyebrow">{{ current.get('status', 'saved') }} / {{ selected_session_id }}</div><h2>{{ current.get('goal', 'Saved session') }}</h2><nav class="workspace-nav" aria-label="Cognition sections"><a href="#plan">Plan</a><a href="#assumptions">Assumptions</a><a href="#decisions">Decisions</a><a href="#history">History</a><a href="/app/workspaces/{{ workspace.slug }}/cognition?project_id={{ (project_id or 'workspace')|urlencode }}">New session +</a></nav></section>
+    <section class="cognition-section" id="plan">
+      <div class="cognition-section-head"><div><div class="eyebrow">01 / plan and recall</div><h2>working context</h2></div><form class="cycle-form" method="post" action="{{ action_url }}">{{ scope('session_cycle') }}<label class="field"><span>Memory limit</span><select name="top_k" {% if not editable %}disabled{% endif %}><option value="5">5 memories</option><option value="10">10 memories</option><option value="3">3 memories</option></select></label><button type="submit" class="button primary" {% if not editable %}disabled{% endif %}>Run cognitive cycle</button></form></div>
+      <p class="subtle">A cycle recalls bounded workspace context without reinforcing memories and records the planner state. Tasks are not executed.</p>
+      <div class="planner-list">
+      {% for state in ['ready', 'active', 'blocked', 'failed'] %}{% for task in snapshot.get('planner', {}).get(state, []) %}<div class="planner-row"><span class="badge state-{{ state }}">{{ state }}</span><strong>{{ task.title }}</strong><code>{{ task.id }}</code></div>{% endfor %}{% endfor %}
+      </div>
+      <form method="post" action="{{ action_url }}" class="inline-action">{{ scope('task_add') }}<label class="field"><span>Planner task</span><input name="title" required maxlength="2000" placeholder="Add the next concrete step" {% if not editable %}disabled{% endif %}></label><button class="button" type="submit" {% if not editable %}disabled{% endif %}>Add task</button></form>
+      {% if snapshot.get('suggested_next_actions') %}<div class="context-list"><h3>Suggested next steps</h3>{% for item in snapshot.suggested_next_actions %}<p>{{ item }}</p>{% endfor %}</div>{% endif %}
+      {% if snapshot.get('recent_activations') %}<details class="runtime-details"><summary>Recalled memory · {{ snapshot.recent_activations|length }}</summary>{% for item in snapshot.recent_activations %}<pre class="code-block">{{ item|tojson(indent=2) }}</pre>{% endfor %}</details>{% endif %}
+    </section>
+    <section class="cognition-section" id="assumptions">
+      <div class="eyebrow">02 / inspect the premises</div><h2>assumptions &amp; observations</h2><p class="subtle">Start with what could change the decision. A statement stays unknown until a supported check produces an observation.</p>
+      {% set active_assumptions = assumptions.get('assumptions', []) if assumptions else [] %}
+      {% for item in active_assumptions %}
+      <article class="assumption-row"><div class="assumption-heading"><h3>{{ item.statement }}</h3><span class="badge state-{{ item.state }}">{{ item.state }}</span></div><p class="subtle">Decision: {{ item.decision }} · Impact {{ item.impact }}</p><p>{{ item.reason }}</p>
+        {% if item.latest_evidence %}<details class="runtime-details"><summary>Latest observed evidence</summary><pre class="code-block">{{ item.latest_evidence|tojson(indent=2) }}</pre></details>{% endif %}
+        <form method="post" action="{{ action_url }}" class="check-action">{{ scope('assumption_check') }}<input type="hidden" name="assumption_id" value="{{ item.id }}"><label class="field"><span>Registered check</span><select name="check_type" {% if not editable %}disabled{% endif %}><option value="engram_status">Engram connection</option><option value="engram_tool_available">Advertised tool availability</option></select></label><label class="field"><span>Tool name (availability check only)</span><input name="tool" placeholder="evidence_put" maxlength="128" {% if not editable %}disabled{% endif %}></label><button type="submit" class="button" {% if not editable %}disabled{% endif %}>Observe</button></form>
+        {% if item.latest_evidence %}<form method="post" action="{{ action_url }}" class="publish-observation">{{ scope('assumption_publish_evidence') }}<input type="hidden" name="assumption_id" value="{{ item.id }}"><input type="hidden" name="evidence_id" value="{{ item.latest_evidence.id }}"><button class="button" type="submit" {% if not editable %}disabled{% endif %}>Publish this observation to Engram</button><span>Stores the recorded observation with provenance.</span></form>{% endif %}
+      </article>
+      {% else %}<div class="empty">No assumptions recorded for this session.</div>{% endfor %}
+      {% if assumptions and assumptions.get('deferred') %}<details class="runtime-details"><summary>{{ assumptions.deferred|length }} deferred assumptions</summary><p>Deferred assumptions still count when deciding their matching action.</p>{% for item in assumptions.deferred %}<p>{{ item.statement }} · {{ item.state }}</p>{% endfor %}</details>{% endif %}
+      <details class="cognition-compose" {% if not active_assumptions %}open{% endif %}><summary>Add an assumption</summary><form method="post" action="{{ action_url }}">{{ scope('assumption_create') }}<label class="field"><span>Assumption</span><textarea name="statement" required maxlength="2000" placeholder="What needs to be true?" {% if not editable %}disabled{% endif %}></textarea></label><label class="field"><span>Dependent decision</span><input name="decision" required maxlength="2000" placeholder="The action this premise affects" {% if not editable %}disabled{% endif %}></label><div class="grid two"><label class="field"><span>Impact</span><select name="impact" {% if not editable %}disabled{% endif %}><option value="1">1 · low</option><option value="2">2 · medium</option><option value="3">3 · high</option></select></label><label class="field"><span>Freshness window</span><select name="max_age_seconds" {% if not editable %}disabled{% endif %}><option value="3600">1 hour</option><option value="300">5 minutes</option><option value="86400">24 hours</option></select></label></div><button type="submit" class="button" {% if not editable %}disabled{% endif %}>Record assumption</button></form></details>
+      <p class="access-note">Hosted checks observe Engram connectivity and advertised tools only. Client reports can be stored through the evidence API; they do not become verified runtime observations.</p>
+    </section>
+    <section class="cognition-section" id="decisions"><div class="eyebrow">03 / decide and revise</div><h2>decision history</h2><p class="subtle">Use the same action text as the dependent decision. Unknown or stale premises hold it; a contradiction records a revision. The result never executes or authorizes the action.</p>
+      <form method="post" action="{{ action_url }}" class="inline-action">{{ scope('assumption_decide') }}<label class="field"><span>Action to evaluate</span><input name="action" required maxlength="2000" placeholder="Match the recorded dependent decision" {% if not editable %}disabled{% endif %}></label><button class="button primary" type="submit" {% if not editable %}disabled{% endif %}>Evaluate decision</button></form>
+      {% for item in assumptions.get('decisions', [])|reverse if assumptions %}<article class="decision-row"><div><span class="badge state-{{ item.disposition }}">{{ item.disposition }}</span><strong>{{ item.action }}</strong><span class="subtle">revision {{ item.revision }}</span></div><p class="subtle">{{ item.cause }}</p>{% if item.blocked_by %}<details><summary>{{ item.blocked_by|length }} blocking premises</summary><pre class="code-block">{{ item.blocked_by|tojson(indent=2) }}</pre></details>{% endif %}</article>{% else %}<div class="empty">No recorded decisions yet.</div>{% endfor %}
+    </section>
+    <section class="cognition-section" id="history"><div class="eyebrow">04 / resume with context</div><h2>session history</h2><p class="subtle">Opening a saved session reloads its persistent planner, cycles, observations, and revisions.</p>
+      <div class="cognition-history-links"><a class="button" href="/app/workspaces/{{ workspace.slug }}/cognition?project_id={{ (project_id or 'workspace')|urlencode }}&amp;session_id={{ selected_session_id|urlencode }}">Reload saved session</a><details><summary>Full session snapshot</summary><pre class="code-block">{{ snapshot|tojson(indent=2) }}</pre></details></div>
+      {% for cycle in snapshot.get('recent_cycles', []) %}<details class="runtime-details"><summary>Cycle {{ cycle.get('id', loop.index) }}</summary><pre class="code-block">{{ cycle|tojson(indent=2) }}</pre></details>{% endfor %}
+      {% for event in snapshot.get('recent_events', []) %}<div class="event-row"><span>{{ event.get('type', 'event') }}</span><time>{{ event.get('timestamp', event.get('created_at', '')) }}</time></div>{% endfor %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

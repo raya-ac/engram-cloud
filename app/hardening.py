@@ -48,10 +48,22 @@ def _host_without_port(value: str) -> str:
 
 
 def _same_origin(request: Request, value: str) -> bool:
-    origin = urlparse(value)
-    if not origin.hostname:
+    def identity(url):
+        if url.scheme not in {"http", "https"} or not url.hostname or url.username or url.password:
+            return None
+        return (url.scheme, url.hostname.lower(), url.port or (443 if url.scheme == "https" else 80))
+
+    try:
+        origin = identity(urlparse(value))
+        target = urlparse(str(request.url))
+        canonical = urlparse(settings.base_url)
+        # The configured HTTPS origin remains authoritative behind the local
+        # reverse proxy; never trust arbitrary forwarded headers for this check.
+        if canonical.scheme == "https" and target.netloc.lower() == canonical.netloc.lower():
+            target = canonical
+        return origin is not None and origin == identity(target)
+    except ValueError:
         return False
-    return origin.hostname.lower() == _host_without_port(request.headers.get("host", ""))
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

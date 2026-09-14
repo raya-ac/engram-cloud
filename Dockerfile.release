@@ -1,0 +1,13 @@
+# Reuse a verified dependency image produced by Dockerfile; pin RUNTIME_IMAGE
+# to its sha256 ID, then test the resulting immutable release image.
+ARG RUNTIME_IMAGE
+FROM ${RUNTIME_IMAGE}
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY app ./app
+RUN pip install --no-cache-dir --no-deps -e .
+ARG SOURCE_REVISION=development
+ENV ENGRAM_CLOUD_SOURCE_REVISION=$SOURCE_REVISION
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
+EXPOSE 8090
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8090"]

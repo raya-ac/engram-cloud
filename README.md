@@ -234,3 +234,13 @@ Public service metadata:
 ## License
 
 Proprietary. All rights reserved. See [LICENSE](LICENSE).
+
+## september 2026 update
+
+The hosted site is `memorylayer.run`. It remains a separate service from the Engram core documentation at [engram-memory.dev](https://engram-memory.dev), with its own GitHub sign-in, workspaces and API keys.
+
+This release pins the exact Engram source revision and adds workspace-scoped evidence operations and dormant-review tools to the existing HTTP tool bridge. Automatic dormant collection stays off. Native JSONL is an Engram core interface; it is not a hosted endpoint. Mythic runs inside each hosted workspace through a bounded direct adapter; Kiln is not required. The same operations are available through the authenticated API and existing MCP bridge.
+
+Workspace memory, ANN files and the legacy session diary stay isolated. The interface keeps existing URLs and operations while simplifying navigation, forms and mobile layouts. See [deployment](docs/deployment.md) for candidate testing, backups, immutable image activation and rollback.
+
+Mythic is pinned to `0bb4b173a8fa597c94472df476a75af4ed150578`. Open a workspace and choose **Cognition** to manage sessions, planner tasks, assumptions, registered checks, decisions and evidence. Settings persist with workspace data. Checks cover only Engram connectivity and advertised tools; workstation files and command execution are unavailable. Cycles use bounded lexical workspace context without reinforcing Engram memory. Explicit evidence publication preserves observer provenance and expiry.

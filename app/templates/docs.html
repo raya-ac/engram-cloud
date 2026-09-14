@@ -4,7 +4,7 @@
 <section class="hero">
   <div class="hero-copy">
     <div class="eyebrow">Hosted memory API</div>
-    <h2>Plug agents into memory without local setup.</h2>
+    <h1>Plug agents into memory without local setup.</h1>
     <p>Memorylayer exposes a hosted service surface around the Engram engine: workspace API keys, agent bootstrap, an HTTP MCP bridge, downloadable starter skills, and regular JSON endpoints for the memory lifecycle.</p>
     <div class="nav" style="margin-top:18px">
       <a href="{{ openapi_url }}" class="button">OpenAPI</a>
@@ -56,6 +56,35 @@
         <span>Machine-readable surface for clients that want a direct service contract</span>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="surface-block">
+  <h3>This reference covers the hosted API</h3>
+  <p>Memory Layer uses a separate Engram store for each workspace. Its HTTP routes and tool catalog define the available hosted operations. For the engine's native JSONL API and optional MCP adapters, see <a class="text-link" href="https://engram-memory.dev">Engram's documentation</a>.</p>
+</section>
+
+<section class="surface-block" id="hosted-cognition">
+  <h2>Mythic cognition in your workspace</h2>
+  <p>Open <strong>Cognition</strong> from a workspace to create persistent sessions, add planner tasks, record cycles, register assumptions, and review decisions. The saved enabled setting controls new cognition writes without removing history.</p>
+  <div class="terminal-surface" style="margin-top:22px">
+    <div class="terminal-row"><span>Session API</span><div><code>POST /api/workspaces/{slug}/mythic</code> accepts <code>{"operation":"session_start","params":{"project_id":"workspace","goal":"your goal"}}</code>. Use <code>session_list</code> and <code>session_snapshot</code> to resume persistent context.</div></div>
+    <div class="terminal-row"><span>Memory context</span><div>Hosted cycles use bounded lexical workspace search without reinforcing memories. They record planner context; they do not execute tasks or publish generated summaries.</div></div>
+    <div class="terminal-row"><span>Checks</span><div>Registered checks observe Engram connectivity or advertised tool availability. Assumptions can remain unknown, become supported or contradicted, or expire. No host file, shell, or external action checks run.</div></div>
+    <div class="terminal-row"><span>Decisions</span><div>Matching assumptions produce proceed, hold, or revise records. Observations and decision revisions stay in the session. A decision does not execute or authorize an action.</div></div>
+    <div class="terminal-row"><span>Evidence</span><div>Publish a selected recorded observation to Engram explicitly. Client-supplied evidence remains distinct from observed runtime checks.</div></div>
+  </div>
+  <p style="margin-top:18px">Memory Layer continues to expose its MCP-compatible HTTP bridge. Engram and Mythic also run independently; their native APIs are separate from the hosted workspace contract.</p>
+</section>
+
+<section class="grid two">
+  <div class="surface-block">
+    <h3>Evidence records</h3>
+    <p><code>evidence_put</code>, <code>evidence_get</code>, and <code>evidence_list</code> store and retrieve caller-supplied observations through the workspace bridge. Records retain source and expiry information. They do not execute checks or prove a caller's claim.</p>
+  </div>
+  <div class="surface-block">
+    <h3>Dormant review</h3>
+    <p><code>dormant_review</code>, <code>dormant_inspect</code>, and <code>dormant_feedback</code> expose the separate review workflow through the same bridge. Automatic dormant collection is off in the hosted runtime; a new workspace can have no candidates to review.</p>
   </div>
 </section>
 
@@ -208,7 +237,7 @@ X-API-Key: engram_...</div>
   <div class="surface-block">
     <h3>Recent export</h3>
     <p><code>GET /api/workspaces/{slug}/export/recent</code></p>
-    <p class="subtle">Export recent workspace memories as JSON for backups or inspection.</p>
+    <p class="subtle">Export recent workspace memories as JSON for inspection or a partial export.</p>
   </div>
   <div class="surface-block">
     <h3>MCP bridge</h3>

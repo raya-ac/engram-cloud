@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ workspace.name }} · Engram Cloud{% endblock %}
+{% block title %}{{ workspace.name }} · Memory Layer{% endblock %}
 {% block body %}
 <section class="workspace-head">
   <div>
@@ -7,15 +7,20 @@
       <span class="badge">{{ workspace.slug }}</span>
       <span class="badge">{{ workspace.schema_name }}</span>
     </div>
-    <h2>{{ workspace.name }}</h2>
-    <p class="subtle">Hosted Engram workspace with its own graph, invite flow, API keys, audit trail, and agent bootstrap surface.</p>
+    <h1>{{ workspace.name }}</h1>
+    <p class="subtle">Search and save context, connect agents, and manage access to this workspace.</p>
   </div>
   <div class="nav">
+    <a class="button primary" href="/app/workspaces/{{ workspace.slug }}/cognition">Cognition →</a>
     <a class="button" href="{{ connection_kit.client_profiles.agent_config_url }}">Agent config</a>
     <a class="button" href="{{ connection_kit.client_profiles.codex_toml_url }}">Codex TOML</a>
     <a class="button" href="{{ connection_kit.client_profiles.claude_skill_url }}">Claude skill</a>
   </div>
 </section>
+
+<nav class="workspace-nav" aria-label="Workspace sections">
+  <a href="#search">Search</a><a href="#remember">Remember</a><a href="#recent">Recent</a><a href="#ingest">Ingest</a><a href="#connection">Connect</a><a href="#keys">API keys</a><a href="#people">People</a><a href="#activity">Activity</a><a href="#audit">Audit</a>
+</nav>
 
 <section class="grid four" style="margin-bottom:18px">
   <div class="card">
@@ -87,7 +92,7 @@
     </div>
 
     <div class="card">
-      <h3>Connection kit</h3>
+      <h3 id="connection">Connection kit</h3>
       <p class="subtle" style="margin-bottom:12px">Use these after creating a workspace key. The JSON profile is designed for agent launchers; the env endpoint is for local scripts.</p>
       <div class="list">
         <div class="item">
@@ -119,9 +124,9 @@
     </div>
 
     <div class="card">
-      <h3>Search memory</h3>
+      <h3 id="search">Search memory</h3>
       <form method="post" action="/app/workspaces/{{ workspace.slug }}/search">
-        <input type="text" name="query" value="{{ search_query or '' }}" placeholder="Search this workspace" required>
+        <input type="text" name="query" value="{{ search_query or '' }}" placeholder="Search this workspace" required aria-label="Search this workspace">
         <button class="button primary" type="submit">Search</button>
       </form>
       <div class="badge-row" style="margin-top:12px">
@@ -132,13 +137,13 @@
     </div>
 
     <div class="card">
-      <h3>Ingest data</h3>
+      <h3 id="ingest">Ingest data</h3>
       <p class="subtle" style="margin-bottom:12px">Paste notes, logs, transcripts, reports, CSV rows, markdown, or upload a text-like file. The service splits it into memories and records the import run.</p>
       <form method="post" action="/app/workspaces/{{ workspace.slug }}/ingest" enctype="multipart/form-data">
-        <input type="text" name="source_name" placeholder="Source name, e.g. incident-notes.md">
-        <textarea name="ingest_text" placeholder="Paste data to ingest"></textarea>
-        <input type="file" name="upload" accept=".txt,.md,.json,.csv,.log,.yaml,.yml">
-        <select name="split_mode">
+        <input type="text" name="source_name" placeholder="Source name, e.g. incident-notes.md" aria-label="Source name">
+        <textarea name="ingest_text" placeholder="Paste data to ingest" aria-label="Content to import"></textarea>
+        <input type="file" name="upload" accept=".txt,.md,.json,.csv,.log,.yaml,.yml" aria-label="Upload a text file">
+        <select name="split_mode" aria-label="Split mode">
           <option value="auto">auto split</option>
           <option value="paragraphs">paragraphs</option>
           <option value="lines">lines</option>
@@ -147,7 +152,7 @@
           <option value="single">single memory</option>
           <option value="json">json items</option>
         </select>
-        <select name="source_type">
+        <select name="source_type" aria-label="Source type">
           <option value="notes">notes</option>
           <option value="handoff">handoff</option>
           <option value="transcript">transcript</option>
@@ -155,13 +160,13 @@
           <option value="log">log</option>
           <option value="dataset">dataset</option>
         </select>
-        <select name="layer">
+        <select name="layer" aria-label="Memory layer">
           <option value="episodic">episodic</option>
           <option value="semantic">semantic</option>
           <option value="procedural">procedural</option>
           <option value="working">working</option>
         </select>
-        <select name="memory_type">
+        <select name="memory_type" aria-label="Memory type">
           <option value="narrative">narrative</option>
           <option value="fact">fact</option>
           <option value="procedure">procedure</option>
@@ -201,7 +206,7 @@
     </div>
 
     <div class="card">
-      <h3>Recent memories</h3>
+      <h3 id="recent">Recent memories</h3>
       {% if recent %}
       <div class="list">
         {% for memory in recent %}
@@ -220,7 +225,7 @@
     </div>
 
     <div class="card">
-      <h3>People</h3>
+      <h3 id="people">People</h3>
       {% if members %}
       <div class="list">
         {% for member in members %}
@@ -241,8 +246,8 @@
     <div class="card">
       <h3>Pending invites</h3>
       <form method="post" action="/app/workspaces/{{ workspace.slug }}/invites">
-        <input type="email" name="email" placeholder="Invite email (optional)">
-        <select name="role">
+        <input type="email" name="email" placeholder="Invite email (optional)" aria-label="Invite email (optional)">
+        <select name="role" aria-label="Invite role">
           <option value="member">member</option>
           <option value="editor">editor</option>
           <option value="admin">admin</option>
@@ -275,16 +280,16 @@
 
   <div class="grid">
     <div class="card">
-      <h3>Remember</h3>
+      <h3 id="remember">Remember</h3>
       <form method="post" action="/app/workspaces/{{ workspace.slug }}/remember">
-        <textarea name="content" placeholder="Store a new memory for this workspace" required></textarea>
-        <select name="layer">
+        <textarea name="content" placeholder="Store a new memory for this workspace" required aria-label="Memory content"></textarea>
+        <select name="layer" aria-label="Memory layer">
           <option value="episodic">episodic</option>
           <option value="semantic">semantic</option>
           <option value="procedural">procedural</option>
           <option value="working">working</option>
         </select>
-        <select name="memory_type">
+        <select name="memory_type" aria-label="Memory type">
           <option value="narrative">narrative</option>
           <option value="fact">fact</option>
           <option value="procedure">procedure</option>
@@ -314,10 +319,10 @@
     </div>
 
     <div class="card">
-      <h3>API keys</h3>
+      <h3 id="keys">API keys</h3>
       <p class="subtle" style="margin-bottom:12px">Use these for agents, apps, or ingestion pipelines.</p>
       <form method="post" action="/app/workspaces/{{ workspace.slug }}/keys">
-        <input type="text" name="label" placeholder="Key label" required>
+        <input type="text" name="label" placeholder="Key label" required aria-label="API key label">
         <button class="button primary" type="submit">Create API key</button>
       </form>
       {% if revealed_api_key %}
@@ -444,7 +449,7 @@
     </div>
 
     <div class="card">
-      <h3>API activity</h3>
+      <h3 id="activity">API activity</h3>
       <p class="subtle" style="margin-bottom:12px">Per-key service calls for agents, ingestion, and bridge traffic.</p>
       {% if api_usage_events %}
       <div class="list">
@@ -496,7 +501,7 @@
     </div>
 
     <div class="card">
-      <h3>Audit trail</h3>
+      <h3 id="audit">Audit trail</h3>
       {% if audit_events %}
       <div class="list">
         {% for event in audit_events %}

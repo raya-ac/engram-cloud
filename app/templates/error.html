@@ -1,198 +1,20 @@
 {% extends "base.html" %}
-{% block title %}{{ status_code }} · Memorylayer{% endblock %}
+{% block title %}{{ status_code }} · Memory Layer{% endblock %}
 {% block body %}
-<style>
-  .error-stage {
-    position: relative;
-    min-height: min(740px, calc(100svh - 130px));
-    display: grid;
-    align-items: center;
-    overflow: hidden;
-    margin: 0 calc(50% - 50vw) 56px;
-    padding: clamp(42px, 8vw, 92px) max(30px, calc((100vw - 1280px) / 2 + 30px));
-    border-bottom: 1px solid var(--line);
-    background:
-      radial-gradient(circle at 74% 42%, rgba(17,17,15,0.14), transparent 18%),
-      linear-gradient(rgba(17,17,15,0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(17,17,15,0.055) 1px, transparent 1px),
-      linear-gradient(135deg, rgba(251,250,246,0.95), rgba(231,225,212,0.84));
-    background-size: auto, 56px 56px, 56px 56px, auto;
-  }
-  .error-stage::before {
-    content: "{{ status_code }}";
-    position: absolute;
-    right: clamp(-36px, 3vw, 44px);
-    bottom: clamp(-18px, 2vw, 26px);
-    color: rgba(17,17,15,0.045);
-    font: 800 clamp(180px, 30vw, 420px)/0.78 "Instrument Sans", ui-sans-serif, sans-serif;
-    letter-spacing: -0.12em;
-    pointer-events: none;
-  }
-  .error-copy {
-    position: relative;
-    z-index: 2;
-    max-width: 650px;
-    animation: fade-up 700ms ease both;
-  }
-  .error-copy h2 {
-    margin: 0 0 18px;
-    max-width: 10ch;
-    font-size: clamp(56px, 8vw, 118px);
-    line-height: 0.88;
-    letter-spacing: -0.075em;
-  }
-  .error-copy p {
-    max-width: 50ch;
-    margin: 0 0 18px;
-    color: var(--muted);
-    font-size: clamp(16px, 1.3vw, 19px);
-  }
-  .error-map {
-    position: absolute;
-    inset: clamp(120px, 16vh, 180px) max(30px, calc((100vw - 1280px) / 2 + 30px)) 70px auto;
-    width: min(46vw, 560px);
-    min-width: 360px;
-    border: 1px solid rgba(17,17,15,0.16);
-    border-radius: 28px;
-    overflow: hidden;
-    background: rgba(251,250,246,0.72);
-    box-shadow: 0 44px 110px rgba(38,34,24,0.14);
-    backdrop-filter: blur(18px);
-    animation: float-map 7s ease-in-out infinite;
-  }
-  .error-map::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(rgba(17,17,15,0.08) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(17,17,15,0.08) 1px, transparent 1px);
-    background-size: 44px 44px;
-    mask-image: radial-gradient(circle at 50% 50%, black, transparent 78%);
-  }
-  .error-route {
-    position: absolute;
-    left: 28px;
-    right: 28px;
-    top: 28px;
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 12px 14px;
-    border: 1px solid rgba(17,17,15,0.14);
-    border-radius: 999px;
-    background: rgba(251,250,246,0.86);
-    color: var(--soft);
-    font: 11px/1.2 "IBM Plex Mono", ui-monospace, monospace;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .error-route span:last-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .route-node {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    background: #11110f;
-    box-shadow: 0 0 0 9px rgba(17,17,15,0.08);
-  }
-  .route-node.one { left: 18%; top: 34%; animation: node-drift 6s ease-in-out infinite; }
-  .route-node.two { right: 22%; top: 44%; animation: node-drift 7s ease-in-out -2s infinite; }
-  .route-node.three { left: 46%; bottom: 24%; animation: node-drift 8s ease-in-out -4s infinite; }
-  .broken-line {
-    position: absolute;
-    left: 20%;
-    right: 24%;
-    top: 48%;
-    height: 1px;
-    background: repeating-linear-gradient(90deg, rgba(17,17,15,0.42) 0 12px, transparent 12px 22px);
-    transform: rotate(-9deg);
-  }
-  .error-panel {
-    position: absolute;
-    left: 28px;
-    right: 28px;
-    bottom: 28px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 18px;
-    align-items: end;
-    padding: 18px;
-    border-top: 1px solid rgba(17,17,15,0.12);
-    background: rgba(251,250,246,0.78);
-  }
-  .error-panel strong {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 18px;
-    letter-spacing: -0.04em;
-  }
-  .error-panel span {
-    color: var(--muted);
-    font-size: 13px;
-  }
-  .error-code {
-    font: 600 48px/0.9 "Instrument Sans", ui-sans-serif, sans-serif;
-    letter-spacing: -0.08em;
-  }
-  .error-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 24px;
-  }
-  @keyframes float-map {
-    0%, 100% { transform: translate3d(0, 0, 0) rotate(-1deg); }
-    50% { transform: translate3d(0, -12px, 0) rotate(1deg); }
-  }
-  @media (max-width: 960px) {
-    .error-stage {
-      min-height: auto;
-      padding-top: 38px;
-      padding-bottom: 44px;
-    }
-    .error-stage::before {
-      right: -18px;
-      bottom: 18px;
-      font-size: 170px;
-    }
-    .error-map {
-      position: relative;
-      inset: auto;
-      width: 100%;
-      min-width: 0;
-      height: 360px;
-      margin-top: 28px;
-    }
-    .error-panel { grid-template-columns: 1fr; }
-  }
-</style>
-
-<section class="error-stage">
-  <div class="error-copy">
-    <div class="eyebrow">{{ eyebrow }}</div>
-    <h2>{{ headline }}</h2>
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">{{ status_code }} / {{ eyebrow }}</div>
+    <h1>{{ headline }}</h1>
     <p>{{ message }}</p>
-    <div class="error-actions">
+    <div class="nav" style="margin-top:24px">
       <a href="/" class="button primary">Return home</a>
       <a href="/docs" class="button">Read docs</a>
       <a href="/status" class="button">Check status</a>
     </div>
   </div>
-  <div class="error-map" aria-hidden="true">
-    <div class="error-route"><span>{{ route_label }}</span><span>{{ path }}</span></div>
-    <div class="broken-line"></div>
-    <div class="route-node one"></div>
-    <div class="route-node two"></div>
-    <div class="route-node three"></div>
-    <div class="error-panel">
-      <div><strong>{{ panel_title }}</strong><span>{{ panel_text }}</span></div>
-      <div class="error-code">{{ status_code }}</div>
-    </div>
+  <div class="terminal-surface">
+    <div class="terminal-row"><span>{{ route_label }}</span><div><code>{{ path }}</code></div></div>
+    <div class="terminal-row"><span>{{ panel_title }}</span><div>{{ panel_text }}</div></div>
   </div>
 </section>
 {% endblock %}

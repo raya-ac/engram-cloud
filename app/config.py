@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ENGRAM_CLOUD_", env_file=".env", extra="ignore")
 
     secret_key: str = Field(default="dev-secret-change-me")
+    source_revision: str = Field(default="development")
     base_url: str = Field(default="http://127.0.0.1:8090")
     postgres_dsn: str = Field(default="postgresql+psycopg://engram:engram@localhost:5432/engram_cloud")
     engram_postgres_dsn: str = Field(default="postgresql://engram:engram@localhost:5432/engram_cloud")

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · Engram Cloud{% endblock %}
+{% block title %}Dashboard · Memory Layer{% endblock %}
 {% block body %}
 <section class="workspace-head">
   <div>
-    <h2>Your workspaces</h2>
+    <h1>Your workspaces</h1>
     <p class="subtle">Each workspace gets its own Engram schema, access controls, and service surface.</p>
   </div>
 </section>
@@ -11,9 +11,9 @@
 <div class="split" style="margin-bottom:18px">
   <div class="card">
     <h3>Create a workspace</h3>
-    <p style="margin-bottom:14px">This provisions the app record, a dedicated Engram schema, and the initial memory store in one step.</p>
+    <p style="margin-bottom:14px">Choose a name for the project or team. Its memory and access stay within this workspace.</p>
     <form method="post" action="/app/workspaces">
-      <input type="text" name="name" placeholder="Workspace name" required>
+      <input type="text" name="name" placeholder="Workspace name" required aria-label="Workspace name">
       <button class="button primary" type="submit">Create workspace</button>
     </form>
   </div>

@@ -12,6 +12,10 @@ from sqlalchemy import text
 
 from engram.config import Config
 from engram.mcp_server import MCPServer
+from engram.evidence import evidence_put, evidence_get, evidence_list
+from jsonschema import Draft202012Validator
+
+from app.agent_catalog import EXTENDED_TOOL_SCHEMAS
 
 from app.config import settings
 from app.db import engine
@@ -80,6 +84,108 @@ TOOL_METHODS = {
     "session_summary": "_session_summary",
 }
 
+ENGRAM_SOURCE_REVISION = "bec09d48858fcac554648410285e793131f2c915"
+EVIDENCE_HANDLERS = {"evidence_put": evidence_put, "evidence_get": evidence_get, "evidence_list": evidence_list}
+TOOL_METHODS.update({name: "_" + name for name in ("dormant_review", "dormant_inspect", "dormant_feedback")})
+
+
+class WorkspaceServer(MCPServer):
+    """Keep the core adapter's legacy process-global diary out of tenant calls."""
+
+    def __init__(self, config: Config):
+        super().__init__(config)
+        self._workspace_diary: list[str] = []
+
+    # The pinned core uses literal percent signs in these bound queries.
+    # Parameterize patterns for psycopg and constrain both read types to one hour.
+    def _memory_map(self, args: dict):
+        stats = self.store.get_stats()
+
+        # top entities per layer
+        layers_detail = {}
+        for layer in ["working", "episodic", "semantic", "procedural", "codebase"]:
+            top = self.store.conn.execute(
+                """SELECT e.canonical_name, COUNT(em.memory_id) as cnt
+                   FROM entity_mentions em
+                   JOIN memories m ON m.id = em.memory_id
+                   JOIN entities e ON e.id = em.entity_id
+                   WHERE m.layer = ? AND m.forgotten = 0
+                   GROUP BY e.id ORDER BY cnt DESC LIMIT 5""",
+                (layer,),
+            ).fetchall()
+            layers_detail[layer] = {
+                "count": stats["memories"].get(layer, 0),
+                "top_entities": [{"name": r["canonical_name"], "count": r["cnt"]} for r in top],
+            }
+
+        # oldest and newest
+        oldest = self.store.conn.execute(
+            "SELECT fact_date, content FROM memories WHERE forgotten=0 AND fact_date IS NOT NULL ORDER BY fact_date ASC LIMIT 1"
+        ).fetchone()
+        newest = self.store.conn.execute(
+            "SELECT fact_date, content FROM memories WHERE forgotten=0 AND fact_date IS NOT NULL ORDER BY fact_date DESC LIMIT 1"
+        ).fetchone()
+
+        # recent activity
+        recent_writes = self.store.conn.execute(
+            "SELECT COUNT(*) as cnt FROM events WHERE event_type LIKE ? AND created_at > ?",
+            ("%write%", time.time() - 3600),
+        ).fetchone()["cnt"]
+        recent_reads = self.store.conn.execute(
+            "SELECT COUNT(*) as cnt FROM events WHERE (event_type LIKE ? OR event_type = 'recall') AND created_at > ?",
+            ("%read%", time.time() - 3600),
+        ).fetchone()["cnt"]
+
+        return {
+            **stats,
+            "layers": layers_detail,
+            "date_range": {
+                "oldest": dict(oldest) if oldest else None,
+                "newest": dict(newest) if newest else None,
+            },
+            "last_hour": {"writes": recent_writes, "reads": recent_reads},
+        }
+
+    # PostgreSQL stores aliases as JSONB; LOWER requires an explicit text cast.
+    def _search_entities(self, args: dict):
+        query = args["query"].lower()
+        rows = self.store.conn.execute(
+            """SELECT e.id, e.canonical_name, e.entity_type, e.aliases,
+                      COUNT(em.memory_id) as mem_count
+               FROM entities e
+               LEFT JOIN entity_mentions em ON em.entity_id = e.id
+               WHERE LOWER(e.canonical_name) LIKE ?
+                  OR LOWER(CAST(e.aliases AS TEXT)) LIKE ?
+               GROUP BY e.id
+               ORDER BY mem_count DESC
+               LIMIT ?""",
+            (f"%{query}%", f"%{query}%", args.get("limit", 20)),
+        ).fetchall()
+        return {"entities": [dict(r) for r in rows]}
+
+    def _diary_write(self, args: dict):
+        entry = f"[{time.strftime('%H:%M:%S')}] {args['entry']}"
+        self.store.write_diary(entry, session_id=self._session_id)
+        self._workspace_diary.append(entry)
+        self._refresh_session_handoff()
+        return {"status": "written", "entries": len(self._workspace_diary)}
+
+    def _diary_read(self, args: dict):
+        entries = self.store.get_diary(limit=50)
+        return {"diary": [entry["text"] for entry in entries] or list(self._workspace_diary)}
+
+    def _session_checkpoint(self, args: dict):
+        note = (args.get("note") or "").strip()
+        if note:
+            entry = f"[checkpoint] {note}"
+            self.store.write_diary(entry, session_id=self._session_id)
+            self._workspace_diary.append(entry)
+        handoff = self._build_session_handoff(self._session_id, limit=args.get("limit", 8))
+        handoff["checkpoint_note"] = note or None
+        self.store.save_session_handoff(self._session_id, handoff["summary"], handoff)
+        return handoff
+
+
 MAX_WORKSPACE_RUNTIMES = 16
 RUNTIME_IDLE_TTL_SECONDS = 60 * 30
 
@@ -114,7 +220,13 @@ def schema_name_for_slug(slug: str) -> str:
     return "ws_" + slug.replace("-", "_")
 
 
+def validate_schema_name(schema_name: str) -> None:
+    if not re.fullmatch(r"ws_[a-z0-9_]{1,48}", schema_name):
+        raise ValueError("Invalid workspace schema")
+
+
 def ensure_workspace_schema(schema_name: str) -> None:
+    validate_schema_name(schema_name)
     with engine.begin() as conn:
         conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"'))
 
@@ -126,13 +238,18 @@ def workspace_engram_dsn(schema_name: str) -> str:
 
 
 def workspace_config(schema_name: str) -> Config:
+    validate_schema_name(schema_name)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     db_dir: Path = settings.data_dir / schema_name
     db_dir.mkdir(parents=True, exist_ok=True)
     cfg = Config.load()
     cfg.storage_backend = "postgres"
     cfg.postgres_dsn = workspace_engram_dsn(schema_name)
-    cfg.db_path = db_dir / "memory.db"
+    cfg.db_path = str((db_dir / "memory.db").resolve())
+    cfg.ann.index_path = str((db_dir / "hnsw.index").resolve())
+    # Enabling collection requires a separate per-workspace rollout. Review of
+    # existing telemetry remains available without enabling shadow collection.
+    cfg.dormant_recall.mode = "off"
     return cfg
 
 
@@ -169,7 +286,7 @@ def workspace_runtime(schema_name: str) -> WorkspaceRuntime:
             return runtime
 
         cfg = workspace_config(schema_name)
-        server = MCPServer(cfg)
+        server = WorkspaceServer(cfg)
         runtime = WorkspaceRuntime(
             schema_name=schema_name,
             config=cfg,
@@ -252,10 +369,21 @@ def workspace_recent_memories(schema_name: str, limit: int = 10) -> list[dict]:
 
 def workspace_tool_call(schema_name: str, tool_name: str, args: dict | None = None):
     method_name = TOOL_METHODS.get(tool_name)
-    if not method_name:
+    if not method_name and tool_name not in EVIDENCE_HANDLERS:
         raise ValueError(f"Unsupported tool: {tool_name}")
+    args = {} if args is None else args
+    if not isinstance(args, dict):
+        raise ValueError("args must be an object")
+    if tool_name in EXTENDED_TOOL_SCHEMAS:
+        errors = sorted(Draft202012Validator(EXTENDED_TOOL_SCHEMAS[tool_name]).iter_errors(args), key=lambda error: str(error.path))
+        if errors:
+            # Do not echo rejected values (which may contain observations or secrets).
+            field = str(next(iter(errors[0].path), "args"))
+            raise ValueError(f"Invalid {tool_name} arguments at {field}: {errors[0].validator}")
 
     runtime = workspace_runtime(schema_name)
     with runtime.lock:
+        if tool_name in EVIDENCE_HANDLERS:
+            return EVIDENCE_HANDLERS[tool_name](runtime.store, **args)
         method = getattr(runtime.server, method_name)
-        return method(args or {})
+        return method(args)

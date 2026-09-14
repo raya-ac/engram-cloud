@@ -1,264 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Memorylayer{% endblock %}
+{% block title %}Memory Layer · a place for useful context{% endblock %}
 {% block body %}
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-copy">
-      <div class="eyebrow">Hosted memory runtime</div>
-      <div class="badge-row hero-badges">
-        <span class="badge">GitHub login</span>
-        <span class="badge">Hosted MCP bridge</span>
-        <span class="badge">{{ tools|length }} tools</span>
-        <span class="badge">Workspace isolation</span>
-      </div>
-      <h2>Memory for agents. Hosted properly.</h2>
-      <p>Workspaces, API keys, ingestion, usage trails, connection kits, and a small HTTP bridge around the real Engram engine.</p>
-      <div class="nav" style="margin-top:22px">
-        <a href="/login/github" class="button primary">Create a workspace</a>
-        <a href="/connect" class="button">Connect an agent</a>
-      </div>
-      <div class="public-rail">
-        <div>
-          <strong>Clean handoff</strong>
-          <p class="subtle">Agents can recall the project, do the work, and leave a checkpoint behind.</p>
-        </div>
-      <div>
-        <strong>No guesswork</strong>
-        <p class="subtle">Every workspace exposes connection JSON, env output, tool discovery, and starter skills.</p>
-        </div>
-        <div>
-          <strong>Free for now</strong>
-          <p class="subtle">The product is being hardened in public before pricing gets in the way.</p>
-        </div>
+<section class="home-hero" aria-labelledby="home-title">
+  <div class="home-hero-inner">
+    <div class="home-copy">
+      <div class="eyebrow">Hosted workspaces · powered by Engram</div>
+      <h1 class="home-title" id="home-title">memory layer.</h1>
+      <h2 class="home-intro">Useful context.<br>Ready for the next session.</h2>
+      <p class="home-description">Engram memory and Mythic cognition, in one workspace. Recall previous work, check the next decision, and leave a clear handoff.</p>
+      <div class="home-actions">
+        <a href="/login/github" class="button primary">Create a workspace <span aria-hidden="true">↗</span></a>
+        <a href="/connect" class="text-link">Connect an agent</a>
       </div>
     </div>
-    <div class="hero-visual">
-      <div class="runtime-strip">
-        <span>workspace</span>
-        <span>api key</span>
-        <span>ingest</span>
-        <span>recall</span>
-      </div>
-      <div class="hero-flow">
-        <div class="flow-card">
-          <div class="flow-index">01 / Workspace</div>
-          <div>
-            <strong>Separate memory spaces</strong>
-            <p>Each project gets its own Engram-backed workspace, member list, keys, audit trail, and schema.</p>
-          </div>
-        </div>
-        <div class="flow-card">
-          <div class="flow-index">02 / API key</div>
-          <div>
-            <strong>Scoped agent access</strong>
-            <p>Issue keys per agent or job. Calls are tracked by route and key so operators can see what happened.</p>
-          </div>
-        </div>
-        <div class="flow-card">
-          <div class="flow-index">03 / Ingest</div>
-          <div>
-            <strong>Bring in state</strong>
-            <p>Paste notes, upload files, or batch import handoffs and reports into workspace memory.</p>
-          </div>
-        </div>
-        <div class="flow-card">
-          <div class="flow-index">04 / Recall</div>
-          <div>
-            <strong>Use it at runtime</strong>
-            <p>Agents search, recall context, write outcomes, and leave checkpoints through the hosted bridge.</p>
-          </div>
-        </div>
-      </div>
-      <div class="signal-stack">
-        <div class="signal-line">
-          <strong>Connection kit</strong>
-          <span>Config JSON, env block, bridge URL, tool discovery, starter skills</span>
-        </div>
-        <div class="signal-line">
-          <strong>HTTP MCP bridge</strong>
-          <span>Hosted access to focused Engram tools when local MCP is not an option</span>
-        </div>
-        <div class="signal-line">
-          <strong>Real engine underneath</strong>
-          <span>Memorylayer wraps Engram itself instead of replacing it with a fake cloud abstraction</span>
-        </div>
-      </div>
+    <div class="home-art-wrap" aria-hidden="true"><div class="home-brand-watermark">ml<span>.</span></div></div>
+  </div>
+</section>
+<section class="home-support">
+  <p>Engram holds the memory. Mythic keeps the session. Memory Layer connects them with shared workspaces, scoped keys, and a hosted MCP-compatible bridge.</p>
+  <a href="/architecture" class="text-link">How it fits together <span aria-hidden="true">↗</span></a>
+</section>
+<section class="home-section" aria-labelledby="workflow-title">
+  <div class="home-sticky">
+    <div class="eyebrow">A little continuity goes a long way</div>
+    <h2 id="workflow-title">Pick up where<br>the work left off.</h2>
+    <p class="subtle">A small loop for work that spans more than one session.</p>
+    <p style="margin-top:25px"><a href="/use-cases" class="text-link">Explore the workflows <span aria-hidden="true">↗</span></a></p>
+  </div>
+  <div>
+    <div class="home-step"><span>01</span><div><h3>Make a place for the project.</h3><p>Create a workspace and invite collaborators. Give each agent its own named, revocable API key.</p></div></div>
+    <div class="home-step"><span>02</span><div><h3>Bring the useful context.</h3><p>Save a decision, paste a handoff, or import notes and files. Preview a larger import through the API before writing it.</p></div></div>
+    <div class="home-step"><span>03</span><div><h3>Recall before starting.</h3><p>Search the workspace or fetch recent memories. Use the hosted bridge for compact context, graph lookups, and session tools.</p></div></div>
+    <div class="home-step"><span>04</span><div><h3>Leave a clear stop point.</h3><p>Write the outcome and save a checkpoint. Review API activity and audit history from the workspace.</p></div></div>
+  </div>
+</section>
+<section class="home-section" aria-labelledby="connect-title">
+  <div>
+    <div class="eyebrow">Plain HTTP. Your choice of client.</div>
+    <h2 id="connect-title">Start with the connection kit.</h2>
+    <p class="subtle">Your workspace returns its endpoint map, authentication format, and starter calls.</p>
+    <p style="margin-top:25px"><a href="/docs" class="text-link">Read the API docs <span aria-hidden="true">↗</span></a></p>
+  </div>
+  <div>
+    <div class="eyebrow">Example request · use your own workspace key</div>
+    <div class="copy-row">
+      <div class="code-block" id="home-connect-command">curl -H "Authorization: Bearer $MEMORYLAYER_KEY" \
+  "$MEMORYLAYER_URL/api/workspaces/$SLUG/connect"</div>
+      <button class="button copy-button" data-copy="#home-connect-command" type="button">Copy</button>
+    </div>
+    <div class="terminal-surface" style="margin-top:28px">
+      <div class="terminal-row"><span>Direct API</span><div>Search, remember, ingest, recent memories, and export.</div></div>
+      <div class="terminal-row"><span>Hosted bridge</span><div>{{ tools|length }} discoverable tools for retrieval, handoffs, graph, and curation.</div></div>
+      <div class="terminal-row"><span>Client examples</span><div><a href="/sdks" class="text-link">Python, JavaScript, and shell snippets</a></div></div>
     </div>
   </div>
 </section>
-
-<section class="section-title fade-reveal">
-  <div>
-    <h2>The service is already inspectable.</h2>
-    <p class="subtle">Memorylayer exposes the operational pieces agent clients need instead of hiding them behind a marketing page.</p>
-  </div>
-  <a href="/status" class="button">View service status</a>
-</section>
-
-<section class="grid four fade-reveal">
-  <div class="surface-block">
-    <div class="stat">{{ capability_count }}</div>
-    <p class="subtle">capabilities tracked across service, site, and agent surfaces.</p>
-  </div>
-  <div class="surface-block">
-    <div class="stat">{{ tools|length }}</div>
-    <p class="subtle">hosted bridge tools exposed for agent workflows.</p>
-  </div>
-  <div class="surface-block">
-    <div class="stat">{{ api_examples|length }}</div>
-    <p class="subtle">request and response fixtures for client builders.</p>
-  </div>
-  <div class="surface-block">
-    <div class="stat">0</div>
-    <p class="subtle">pricing tiers; the service is free while it hardens.</p>
+<section class="home-boundary" aria-labelledby="boundary-title">
+  <div class="eyebrow">Memory + cognition</div>
+  <h2 id="boundary-title">Two layers.<br>One place to work.</h2>
+  <div class="home-boundary-grid">
+    <div><h3>Engram memory</h3><p>Search and save context in an isolated workspace. Use direct HTTP routes or the MCP-compatible tool bridge for retrieval, handoffs, evidence, and curation.</p><a href="/capabilities" class="text-link">Hosted capabilities <span aria-hidden="true">↗</span></a></div>
+    <div><h3>Mythic cognition</h3><p>Keep persistent sessions, planner context, observed premises, and decision revisions beside your memory. Run registered Engram checks and resume the saved session.</p><a href="/docs#hosted-cognition" class="text-link">Hosted cognition <span aria-hidden="true">↗</span></a></div>
   </div>
 </section>
-
-<section class="section-title fade-reveal">
-  <div>
-    <h2>Start from the connection kit.</h2>
-    <p class="subtle">New clients should not scrape docs or guess URLs. Ask the workspace for the config it wants you to use.</p>
-  </div>
-  <a href="/connect" class="button">Connect guide</a>
-</section>
-
-<section class="grid three fade-reveal">
-  <div class="surface-block">
-    <h3>Config JSON</h3>
-    <p><code>/api/workspaces/{slug}/connect</code></p>
-    <p class="subtle">Endpoint map, MCP settings, starter skills, and recommended startup calls.</p>
-  </div>
-  <div class="surface-block">
-    <h3>Env block</h3>
-    <p><code>/api/workspaces/{slug}/env</code></p>
-    <p class="subtle">Plain variables for local scripts, launchers, and worker processes.</p>
-  </div>
-  <div class="surface-block">
-    <h3>Bridge tools</h3>
-    <p><code>/api/workspaces/{slug}/mcp/tools</code></p>
-    <p class="subtle">A workspace-scoped tool catalog with argument hints.</p>
-  </div>
-</section>
-
-<section class="section-title fade-reveal">
-  <div>
-    <h2>Copy the client shape.</h2>
-    <p class="subtle">SDK snippets, playbooks, and API fixtures are part of the service surface, available as pages and JSON.</p>
-  </div>
-  <a href="/sdks" class="button">View SDK patterns</a>
-</section>
-
-<section class="grid three fade-reveal">
-  {% for snippet in sdk_snippets[:3] %}
-  <div class="surface-block">
-    <h3>{{ snippet.name }}</h3>
-    <p>{{ snippet.summary }}</p>
-    <div class="badge-row"><span class="badge">{{ snippet.language }}</span></div>
-  </div>
-  {% endfor %}
-</section>
-
-<section class="section-title fade-reveal">
-  <div>
-    <h2>Designed for real agent sessions.</h2>
-    <p class="subtle">The useful path is compact: load memory, work, write the result, leave a clean stop point.</p>
-  </div>
-  <a href="/capabilities" class="button">View all</a>
-</section>
-
-<section class="capability-ledger fade-reveal">
-  {% for group in capability_groups[:4] %}
-  <div class="capability-group">
-    <h3>{{ group.name }}</h3>
-    <ul class="capability-list">
-      {% for item in group["items"][:6] %}
-      <li>{{ item }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endfor %}
-</section>
-
-<section class="section-title fade-reveal">
-  <div>
-    <h2>One service around the engine.</h2>
-    <p class="subtle">Engram stays focused on memory behavior. Memorylayer handles identity, workspaces, keys, dashboards, and hosted access.</p>
-  </div>
-</section>
-
-<section class="section-stack">
-  <div class="detail-block fade-reveal">
-    <div class="detail-grid">
-      <div>
-        <h3>Workspace control</h3>
-        <p class="subtle">Create workspaces, inspect memory health, issue keys, invite collaborators, and keep audit history in one place.</p>
-      </div>
-      <div class="terminal-surface">
-        <div class="terminal-row"><span>Control</span><div>Dashboard, workspaces, invites, API keys, audit feed</div></div>
-        <div class="terminal-row"><span>Isolation</span><div>One Engram schema per workspace with independent memory state</div></div>
-      </div>
-    </div>
-  </div>
-  <div class="detail-block fade-reveal">
-    <div class="detail-grid">
-      <div>
-        <h3>Agent-facing API</h3>
-        <p class="subtle">Use hosted endpoints for search, remember, recent memories, audit history, bootstrap, and a compact HTTP bridge for selected Engram tools.</p>
-      </div>
-      <div class="terminal-surface">
-        <div class="terminal-row"><span>Surface</span><div>`/bootstrap`, `/status`, `/search`, `/remember`, `/audit`, `/usage`, `/mcp`</div></div>
-        <div class="terminal-row"><span>Auth</span><div>Workspace-scoped keys via `Authorization: Bearer` or `X-API-Key`</div></div>
-      </div>
-    </div>
-  </div>
-  <div class="detail-block fade-reveal">
-    <div class="detail-grid">
-      <div>
-        <h3>Same Engram core</h3>
-        <p class="subtle">This is still the real Engram engine underneath, so retrieval, graph, and memory improvements pass straight through to the hosted layer.</p>
-      </div>
-      <div class="terminal-surface">
-        <div class="terminal-row"><span>Runtime</span><div>Hosted wrapper around the actual Engram package, not a separate imitation backend</div></div>
-        <div class="terminal-row"><span>Deploy</span><div>VPS-first architecture with a warm Python runtime and direct Postgres access</div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section-title fade-reveal">
-  <div>
-    <h2>What is live now.</h2>
-    <p class="subtle">A practical feature matrix, agent examples, security posture, status page, changelog, copyable snippets, connection kits, and usage-aware docs.</p>
-  </div>
-</section>
-
-<section class="grid three fade-reveal">
-  {% for feature in features[:12] %}
-  <div class="surface-block">
-    <h3>{{ feature.name }}</h3>
-    <p>{{ feature.summary }}</p>
-  </div>
-  {% endfor %}
-</section>
-
-<section class="section-title fade-reveal">
-  <div>
-    <h2>Copy a workflow</h2>
-    <p class="subtle">Use these as starting points for agents, ingestion jobs, and usage monitors.</p>
-  </div>
-  <a href="/examples" class="button">All examples</a>
-</section>
-
-<section class="grid two fade-reveal">
-  {% for recipe in recipes[:2] %}
-  <div class="surface-block">
-    <h3>{{ recipe.name }}</h3>
-    <p class="subtle">{{ recipe.steps|join(" -> ") }}</p>
-    <div class="copy-row" style="margin-top:14px">
-      <div class="code-block" id="home-recipe-{{ loop.index }}">{{ recipe.command }}</div>
-      <button class="button copy-button" data-copy="#home-recipe-{{ loop.index }}" type="button">Copy</button>
-    </div>
-  </div>
-  {% endfor %}
+<section class="home-final">
+  <div><div class="eyebrow">Keep the useful part.</div><h2>Give the next session a head start.</h2><p>Create a workspace, add context, and connect your first agent.</p></div>
+  <a href="/login/github" class="button primary">Continue with GitHub <span aria-hidden="true">↗</span></a>
 </section>
 {% endblock %}

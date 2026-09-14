@@ -1,6 +1,18 @@
 from __future__ import annotations
 
 from textwrap import dedent
+from copy import deepcopy
+
+from engram.mcp_server import TOOLS as CORE_TOOLS
+
+
+_EXTENDED_NAMES = {"evidence_put", "evidence_get", "evidence_list", "dormant_review", "dormant_inspect", "dormant_feedback"}
+EXTENDED_TOOL_SCHEMAS = {tool["name"]: deepcopy(tool["inputSchema"]) for tool in CORE_TOOLS if tool["name"] in _EXTENDED_NAMES}
+for _schema in EXTENDED_TOOL_SCHEMAS.values():
+    _schema["additionalProperties"] = False
+EXTENDED_TOOL_SCHEMAS["dormant_review"]["properties"]["limit"].update(minimum=1, maximum=100)
+for _name in ("dormant_inspect", "dormant_feedback"):
+    EXTENDED_TOOL_SCHEMAS[_name]["properties"]["event_id"].update(minLength=1, maxLength=200)
 
 
 SUPPORTED_TOOLS = [
@@ -307,7 +319,24 @@ SUPPORTED_TOOLS = [
 ]
 
 
+for _tool in CORE_TOOLS:
+    if _tool["name"] in _EXTENDED_NAMES:
+        _schema = EXTENDED_TOOL_SCHEMAS[_tool["name"]]
+        SUPPORTED_TOOLS.append({
+            "name": _tool["name"],
+            "summary": _tool["description"],
+            "args": {
+                name: (" | ".join(prop["enum"]) if "enum" in prop else prop.get("type", "value"))
+                + ("" if name in _schema.get("required", []) else ", optional")
+                for name, prop in _schema["properties"].items()
+            },
+            "inputSchema": _schema,
+        })
+
+
 TOOL_GROUPS = [
+    {"name": "Evidence", "tools": ["evidence_put", "evidence_get", "evidence_list"]},
+    {"name": "Dormant review", "tools": ["dormant_review", "dormant_inspect", "dormant_feedback"]},
     {
         "name": "Runtime health",
         "tools": ["status", "health", "memory_map", "quality_metrics", "count_by", "access_patterns", "reranker_status"],
